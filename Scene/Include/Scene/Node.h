@@ -64,10 +64,6 @@ namespace Scene {
             return rotation;
         }
 
-        const glm::mat4& getLocalMatrix() const {
-            return localMatrix;
-        }
-
         const glm::vec3& getPosition() const {
             return position;
         }
@@ -89,7 +85,6 @@ namespace Scene {
          */
         glm::vec3 translation;
         glm::quat rotation;
-        glm::mat4 localMatrix;
 
         /*
          * Absolute world properties

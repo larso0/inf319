@@ -6,7 +6,7 @@ using Math::quatTransform;
 
 namespace Scene {
     void Node::update() {
-        localMatrix = glm::mat4_cast(rotation);
+        glm::mat4 localMatrix = glm::mat4_cast(rotation);
         localMatrix = glm::translate(localMatrix, translation);
 
         if (parent) {
@@ -22,7 +22,7 @@ namespace Scene {
             worldMatrix = localMatrix;
         }
 
-        for (auto child : children) {
+        for (Node* child : children) {
             child->update();
         }
     }
