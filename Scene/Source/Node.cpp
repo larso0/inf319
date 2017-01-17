@@ -2,16 +2,26 @@
 #include <algorithm>
 
 using std::remove_if;
+using Math::quatTransform;
 
 namespace Scene {
     void Node::update() {
         localMatrix = glm::mat4_cast(rotation);
         localMatrix = glm::translate(localMatrix, translation);
+
         if (parent) {
+            position = parent->getPosition() +
+                       quatTransform(parent->getOrientation(),
+                                     glm::normalize(translation)) *
+                       glm::length(translation);
+            orientation = parent->getOrientation() * rotation;
             worldMatrix = parent->getWorldMatrix() * localMatrix;
         } else {
+            position = translation;
+            orientation = rotation;
             worldMatrix = localMatrix;
         }
+
         for (auto child : children) {
             child->update();
         }
