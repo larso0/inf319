@@ -8,7 +8,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 namespace Math {
-    glm::vec3 quatTransform(const glm::quat& q, const glm::vec3& v);
+	glm::vec3 quatTransform(const glm::quat& q, const glm::vec3& v);
 }
 
 #endif

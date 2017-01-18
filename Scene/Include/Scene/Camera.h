@@ -6,8 +6,7 @@
 namespace Scene {
 	class Camera: public Node {
 	public:
-		Camera(Node* parent = nullptr) :
-				Node(parent) {}
+		Camera(Node* parent = nullptr) : Node(parent) {}
 		virtual ~Camera() {}
 
 		virtual void update() override;

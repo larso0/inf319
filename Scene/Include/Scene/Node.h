@@ -5,95 +5,96 @@
 #include <vector>
 
 namespace Scene {
-    class Node {
-    public:
-        Node(Node* parent = nullptr) : parent(parent) {
-            if (parent) parent->addChild(this);
-        }
-        virtual ~Node() {}
+	class Node {
+	public:
+		Node(Node* parent = nullptr) : parent(parent) {
+			if (parent) parent->addChild(this);
+		}
 
-        /*
-         * Update the world matrix, position and orientation.
-         */
-        virtual void update();
+		virtual ~Node() {}
 
-        void setParent(Node* parent) {
-            parent->addChild(this);
-        }
+		/*
+		 * Update the world matrix, position and orientation.
+		 */
+		virtual void update();
 
-        void addChild(Node* child);
-        void removeChild(Node* child);
+		void setParent(Node* parent) {
+			parent->addChild(this);
+		}
 
-        void translate(float x, float y, float z) {
-            translation = glm::vec3(x, y, z);
-        }
+		void addChild(Node* child);
+		void removeChild(Node* child);
 
-        void translate(const glm::vec3& t) {
-            translation += t;
-        }
+		void translate(float x, float y, float z) {
+			translation = glm::vec3(x, y, z);
+		}
 
-        void rotate(float angle, const glm::vec3& axis) {
-            rotation *= glm::angleAxis(angle, axis);
-        }
+		void translate(const glm::vec3& t) {
+			translation += t;
+		}
 
-        void setTranslation(float x, float y, float z) {
-            translation = glm::vec3(x, y, z);
-        }
+		void rotate(float angle, const glm::vec3& axis) {
+			rotation *= glm::angleAxis(angle, axis);
+		}
 
-        void setTranslation(const glm::vec3& t) {
-            translation = t;
-        }
+		void setTranslation(float x, float y, float z) {
+			translation = glm::vec3(x, y, z);
+		}
 
-        void setRotation(float angle, const glm::vec3& axis) {
-            rotation = glm::angleAxis(angle, axis);
-        }
+		void setTranslation(const glm::vec3& t) {
+			translation = t;
+		}
 
-        Node* getParent() {
-            return parent;
-        }
+		void setRotation(float angle, const glm::vec3& axis) {
+			rotation = glm::angleAxis(angle, axis);
+		}
 
-        std::vector<Node*>& getChildren() {
-            return children;
-        }
+		Node* getParent() {
+			return parent;
+		}
 
-        const glm::vec3& getTranslation() const {
-            return translation;
-        }
+		std::vector<Node*>& getChildren() {
+			return children;
+		}
 
-        const glm::quat& getRotation() const {
-            return rotation;
-        }
+		const glm::vec3& getTranslation() const {
+			return translation;
+		}
 
-        const glm::vec3& getPosition() const {
-            return position;
-        }
+		const glm::quat& getRotation() const {
+			return rotation;
+		}
 
-        const glm::quat& getOrientation() const {
-            return orientation;
-        }
+		const glm::vec3& getPosition() const {
+			return position;
+		}
 
-        const glm::mat4& getWorldMatrix() const {
-            return worldMatrix;
-        }
+		const glm::quat& getOrientation() const {
+			return orientation;
+		}
 
-    protected:
-        Node* parent;
-        std::vector<Node*> children;
+		const glm::mat4& getWorldMatrix() const {
+			return worldMatrix;
+		}
 
-        /*
-         * Relative local properties
-         */
-        glm::vec3 translation;
-        glm::quat rotation;
+	protected:
+		Node* parent;
+		std::vector<Node*> children;
 
-        /*
-         * Absolute world properties
-         */
-        glm::vec3 position;
-        glm::quat orientation;
-        glm::mat4 worldMatrix;
+		/*
+		 * Relative local properties
+		 */
+		glm::vec3 translation;
+		glm::quat rotation;
 
-    };
+		/*
+		 * Absolute world properties
+		 */
+		glm::vec3 position;
+		glm::quat orientation;
+		glm::mat4 worldMatrix;
+
+	};
 }
 
 #endif

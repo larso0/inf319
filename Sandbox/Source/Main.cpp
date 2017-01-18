@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
 
 	glfwMakeContextCurrent(window);
 
-	if(!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
+	if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
 		cerr << "Could not load OpenGL extensions.\n";
 		glfwDestroyWindow(window);
 		glfwTerminate();
