@@ -7,8 +7,8 @@
 namespace Scene {
 	class Node {
 	public:
-		Node(Node* parent = nullptr) : parent(parent) {
-			if (parent) parent->addChild(this);
+		Node(Node* p = nullptr) : parent(nullptr) {
+			if (p) p->addChild(this);
 		}
 
 		virtual ~Node() {}
