@@ -7,6 +7,18 @@
 namespace Scene {
 	class Geometry {
 	public:
+		enum class PrimitiveType {
+			Points,
+			Lines,
+			LineLoop,
+			LineStrip,
+			Triangles,
+			TriangleStrip,
+			TriangleFan
+		};
+
+		Geometry(PrimitiveType pt = PrimitiveType::Triangles) :
+			primitiveType(pt) {}
 		virtual ~Geometry() {}
 
 		uint32_t addVertex(const Vertex& vertex) {
@@ -20,6 +32,7 @@ namespace Scene {
 		}
 
 	private:
+		PrimitiveType primitiveType;
 		std::vector<Vertex> vertices;
 	};
 }

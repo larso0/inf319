@@ -6,6 +6,9 @@
 namespace Scene {
 	class ElementGeometry : public Geometry {
 	public:
+		ElementGeometry(PrimitiveType pt = PrimitiveType::Triangles) :
+			Geometry(pt) {}
+
 		void addIndex(uint32_t index) {
 			indices.push_back(index);
 		}
