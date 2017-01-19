@@ -33,8 +33,12 @@ int main(int argc, char** argv) {
 		return 3;
 	}
 
+	glfwSwapInterval(1);
+
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
+
+		glfwSwapBuffers(window);
 	}
 
 	glfwDestroyWindow(window);
