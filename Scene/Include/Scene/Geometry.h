@@ -27,6 +27,14 @@ namespace Scene {
 			return i;
 		}
 
+		void setPrimitiveType(PrimitiveType pt) {
+			primitiveType = pt;
+		}
+
+		PrimitiveType getPrimitiveType() const {
+			return primitiveType;
+		}
+
 		std::vector<Vertex>& getVertices() {
 			return vertices;
 		}
