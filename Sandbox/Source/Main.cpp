@@ -183,6 +183,7 @@ int main(int argc, char** argv) {
 
 	glDeleteVertexArrays(1, &cubeVAO);
 	glDeleteBuffers(1, &cubeVertexBuffer);
+	glDeleteProgram(drawProgram);
 
 	glfwDestroyWindow(window);
 	glfwTerminate();
