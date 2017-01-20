@@ -6,8 +6,8 @@ using Math::quatTransform;
 
 namespace Scene {
 	void Node::update() {
-		glm::mat4 localMatrix = glm::mat4_cast(rotation);
-		localMatrix = glm::translate(localMatrix, translation);
+		glm::mat4 localMatrix =
+			glm::translate(glm::mat4(), translation) * glm::mat4_cast(rotation);
 
 		if (parent) {
 			position = parent->getPosition()
