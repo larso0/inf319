@@ -8,8 +8,52 @@
 
 using namespace std;
 
+class Configuration {
+public:
+	Configuration() :
+		width(800), height(600),
+		mouseHidden(false),
+		mouseX(0.f), mouseY(0.f),
+		sensitivity(0.002f),
+		yaw(0.f), pitch(0.f),
+		movementSpeed(2.f) {}
+
+	int width, height;
+	bool mouseHidden;
+	double mouseX, mouseY;
+	float sensitivity;
+	float yaw, pitch;
+	float movementSpeed;
+};
+
 void errorCallback(int error, const char* description) {
 	cerr << "Error: " << description << endl;
+}
+
+void keyCallback(GLFWwindow* window, int key, int, int action, int) {
+	Configuration* config = (Configuration*)glfwGetWindowUserPointer(window);
+	if (action != GLFW_RELEASE) return;
+	switch (key) {
+	case GLFW_KEY_ESCAPE:
+		glfwSetInputMode(window, GLFW_CURSOR,
+			config->mouseHidden ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+		config->mouseHidden = ! config->mouseHidden;
+		break;
+	default:
+		break;
+	}
+}
+
+void mousePositionCallback(GLFWwindow* window, double x, double y) {
+	Configuration* config = (Configuration*)glfwGetWindowUserPointer(window);
+	float motionX = x - config->mouseX;
+	float motionY = y - config->mouseY;
+	if (config->mouseHidden) {
+		config->yaw -= motionX*config->sensitivity;
+		config->pitch -= motionY*config->sensitivity;
+	}
+	config->mouseX = x;
+	config->mouseY = y;
 }
 
 const char* vertexShaderSource =
@@ -98,7 +142,9 @@ int main(int argc, char** argv) {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
 	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-	GLFWwindow* window = glfwCreateWindow(800, 600, "Scratchpad", NULL, NULL);
+	Configuration config;
+
+	GLFWwindow* window = glfwCreateWindow(config.width, config.height, "Scratchpad", NULL, NULL);
 	if (!window) {
 		cerr << "Unable to create window.\n";
 		glfwTerminate();
@@ -114,11 +160,16 @@ int main(int argc, char** argv) {
 		return 3;
 	}
 
+	glfwSetWindowUserPointer(window, &config);
+	glfwSetKeyCallback(window, keyCallback);
+	glfwSetCursorPosCallback(window, mousePositionCallback);
+	glfwGetCursorPos(window, &config.mouseX, &config.mouseY);
+
 	glfwSwapInterval(1);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glClearColor(0.5f, 0.5f, 0.5f, 1.f);
-	glViewport(0, 0, 800, 600);
+	glViewport(0, 0, config.width, config.height);
 
 	GLuint drawProgram = createDrawProgram();
 	Scene::Geometry cubeGeometry = Scene::generateCube();
@@ -161,6 +212,7 @@ int main(int argc, char** argv) {
 	glm::mat4 projectionMatrix = glm::perspective(glm::radians(60.f), 800.f / 600.f, 0.1f, 100.f);
 	glm::mat4 testScaleMatrix = glm::scale(glm::mat4(), glm::vec3(0.2f, 2.f, 0.2f));
 
+	double time = glfwGetTime();
 	while (!glfwWindowShouldClose(window)) {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -177,8 +229,58 @@ int main(int argc, char** argv) {
 		glDrawArrays(GL_TRIANGLES, 0, cubeGeometry.getVertices().size());
 
 		glfwSwapBuffers(window);
-
 		glfwPollEvents();
+
+		if (config.mouseHidden) {
+			glm::vec3 cameraDirection = Math::quatTransform(
+				camera.getOrientation(), glm::vec3(0.f, 0.f, -1.f));
+			glm::vec3 cameraRight = Math::quatTransform(camera.getOrientation(),
+				glm::vec3(1.f, 0.f, 0.f));
+
+			double seconds = glfwGetTime();
+			float delta = seconds - time;
+			time = seconds;
+
+			glm::vec3 movement;
+			bool moved = false;
+			bool keyW = glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS;
+			bool keyA = glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS;
+			bool keyS = glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS;
+			bool keyD = glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS;
+			bool keyQ = glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS;
+			bool keyE = glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS;
+			if (keyW && !keyS) {
+				movement += cameraDirection;
+				moved = true;
+			} else if (keyS && !keyW) {
+				movement -= cameraDirection;
+				moved = true;
+			}
+			if (keyA && !keyD) {
+				movement -= cameraRight;
+				moved = true;
+			} else if (keyD && !keyA) {
+				movement += cameraRight;
+				moved = true;
+			}
+			if (keyQ && !keyE) {
+				movement -= glm::vec3(0.f, 1.f, 0.f);
+				moved = true;
+			} else if (keyE && !keyQ) {
+				movement += glm::vec3(0.f, 1.f, 0.f);
+				moved = true;
+			}
+
+			if (moved) {
+				movement = glm::normalize(movement) * delta * config.movementSpeed;
+				camera.translate(movement);
+			}
+
+			camera.setRotation(config.yaw, glm::vec3(0.f, 1.f, 0.f));
+			camera.rotate(config.pitch, glm::vec3(1.f, 0.f, 0.f));
+			camera.update();
+
+		}
 	}
 
 	glDeleteVertexArrays(1, &cubeVAO);
