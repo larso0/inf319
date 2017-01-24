@@ -6,6 +6,7 @@
 
 namespace Scene {
 	Geometry generateCube();
+	ElementGeometry generateSphere(unsigned subdivisions);
 }
 
 #endif
