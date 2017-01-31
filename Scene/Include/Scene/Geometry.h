@@ -39,6 +39,22 @@ namespace Scene {
 			return vertices;
 		}
 
+		size_t getVertexDataSize() const {
+			return sizeof(Vertex)*vertices.size();
+		}
+
+		const Vertex* getVertexData() const {
+			return vertices.data();
+		}
+
+		Vertex* getVertexData() {
+			return vertices.data();
+		}
+
+		virtual size_t getElementCount() const {
+			return vertices.size();
+		}
+
 	private:
 		PrimitiveType primitiveType;
 		std::vector<Vertex> vertices;

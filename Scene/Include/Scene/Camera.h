@@ -4,7 +4,7 @@
 #include "Node.h"
 
 namespace Scene {
-	class Camera: public Node {
+	class Camera : public Node {
 	public:
 		Camera(Node* parent = nullptr) : Node(parent) {}
 		virtual ~Camera() {}

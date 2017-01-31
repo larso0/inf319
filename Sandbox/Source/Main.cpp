@@ -7,6 +7,7 @@
 #include <Scene/GeometryGeneration.h>
 
 using namespace std;
+using namespace Scene;
 
 class Configuration {
 public:
@@ -132,6 +133,19 @@ GLuint createDrawProgram() {
 	return handle;
 }
 
+GLenum primitiveType(Geometry::PrimitiveType pt) {
+	switch (pt) {
+	case Geometry::PrimitiveType::Points: return GL_POINTS;
+	case Geometry::PrimitiveType::Lines: return GL_LINES;
+	case Geometry::PrimitiveType::LineLoop: return GL_LINE_LOOP;
+	case Geometry::PrimitiveType::LineStrip: return GL_LINE_STRIP;
+	case Geometry::PrimitiveType::Triangles: return GL_TRIANGLES;
+	case Geometry::PrimitiveType::TriangleStrip: return GL_TRIANGLE_STRIP;
+	case Geometry::PrimitiveType:: TriangleFan: return GL_TRIANGLE_FAN;
+	}
+	throw invalid_argument("Unknown primitive type");
+}
+
 int main(int argc, char** argv) {
 	if (!glfwInit()) {
 		cerr << "Failed to initialize GLFW.\n";
@@ -172,16 +186,18 @@ int main(int argc, char** argv) {
 	glViewport(0, 0, config.width, config.height);
 
 	GLuint drawProgram = createDrawProgram();
-	Scene::Geometry cubeGeometry = Scene::generateCube();
-	Scene::ElementGeometry sphereGeometry = Scene::generateSphere(5);
+	Geometry cubeGeometry = generateCube();
+	GLenum cubePrimitiveType = primitiveType(cubeGeometry.getPrimitiveType());
+	ElementGeometry sphereGeometry = generateSphere(5);
+	GLenum spherePrimitiveType = primitiveType(sphereGeometry.getPrimitiveType());
 
 	GLuint cubeVertexBuffer;
 	glGenBuffers(1, &cubeVertexBuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, cubeVertexBuffer);
 	glBufferData(
 		GL_ARRAY_BUFFER,
-		sizeof(Scene::Vertex)*cubeGeometry.getVertices().size(),
-		cubeGeometry.getVertices().data(),
+		cubeGeometry.getVertexDataSize(),
+		cubeGeometry.getVertexData(),
 		GL_STATIC_DRAW);
 
 	GLuint sphereVertexBuffer;
@@ -189,8 +205,8 @@ int main(int argc, char** argv) {
 	glBindBuffer(GL_ARRAY_BUFFER, sphereVertexBuffer);
 	glBufferData(
 		GL_ARRAY_BUFFER,
-		sizeof(Scene::Vertex)*sphereGeometry.getVertices().size(),
-		sphereGeometry.getVertices().data(),
+		sphereGeometry.getVertexDataSize(),
+		sphereGeometry.getVertexData(),
 		GL_STATIC_DRAW);
 
 	GLuint sphereIndexBuffer;
@@ -198,8 +214,8 @@ int main(int argc, char** argv) {
 	glBindBuffer(GL_ARRAY_BUFFER, sphereIndexBuffer);
 	glBufferData(
 		GL_ARRAY_BUFFER,
-		sizeof(uint32_t)*sphereGeometry.getIndices().size(),
-		sphereGeometry.getIndices().data(),
+		sphereGeometry.getIndexDataSize(),
+		sphereGeometry.getIndexData(),
 		GL_STATIC_DRAW);
 
 	glUseProgram(drawProgram);
@@ -214,10 +230,10 @@ int main(int argc, char** argv) {
 	glBindBuffer(GL_ARRAY_BUFFER, cubeVertexBuffer);
 	glEnableVertexAttribArray(vertexPosition);
 	glVertexAttribPointer(vertexPosition, 3, GL_FLOAT, GL_FALSE,
-		sizeof(Scene::Vertex), 0);
+		Vertex::STRIDE, (const GLvoid*)Vertex::POSITION_OFFSET);
 	glEnableVertexAttribArray(vertexNormal);
 	glVertexAttribPointer(vertexNormal, 3, GL_FLOAT, GL_FALSE,
-		sizeof(Scene::Vertex), (const GLvoid*)sizeof(glm::vec3));
+		Vertex::STRIDE, (const GLvoid*)Vertex::NORMAL_OFFSET);
 
 	GLuint sphereVAO;
 	glGenVertexArrays(1, &sphereVAO);
@@ -225,21 +241,21 @@ int main(int argc, char** argv) {
 	glBindBuffer(GL_ARRAY_BUFFER, sphereVertexBuffer);
 	glEnableVertexAttribArray(vertexPosition);
 	glVertexAttribPointer(vertexPosition, 3, GL_FLOAT, GL_FALSE,
-		sizeof(Scene::Vertex), 0);
+		Vertex::STRIDE, (const GLvoid*)Vertex::POSITION_OFFSET);
 	glEnableVertexAttribArray(vertexNormal);
 	glVertexAttribPointer(vertexNormal, 3, GL_FLOAT, GL_FALSE,
-		sizeof(Scene::Vertex), (const GLvoid*)sizeof(glm::vec3));
+		Vertex::STRIDE, (const GLvoid*)Vertex::NORMAL_OFFSET);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphereIndexBuffer);
 
-	Scene::Node cube1;
-	Scene::Node cube2(&cube1);
-	Scene::Node sphere(&cube1);
+	Node cube1;
+	Node cube2(&cube1);
+	Node sphere(&cube1);
 	cube2.translate(2.f, 0.f, 0.f);
 	cube2.rotate(glm::radians(45.f), glm::vec3(0.f, 1.f, 0.f));
 	sphere.translate(0.f, 2.f, 0.f);
 	cube1.update();
 
-	Scene::Camera camera;
+	Camera camera;
 	camera.translate(0.f, 0.f, 3.f);
 	camera.update();
 
@@ -256,13 +272,13 @@ int main(int argc, char** argv) {
 			projectionMatrix * camera.getViewMatrix() * cube1.getWorldMatrix();
 		glUniformMatrix4fv(worldViewProjectionMatrixUniform, 1, GL_FALSE,
 			glm::value_ptr(worldViewProjectionMatrix));
-		glDrawArrays(GL_TRIANGLES, 0, cubeGeometry.getVertices().size());
+		glDrawArrays(cubePrimitiveType, 0, cubeGeometry.getElementCount());
 
 		worldViewProjectionMatrix =
 			projectionMatrix * camera.getViewMatrix() * cube2.getWorldMatrix() * testScaleMatrix;
 		glUniformMatrix4fv(worldViewProjectionMatrixUniform, 1, GL_FALSE,
 			glm::value_ptr(worldViewProjectionMatrix));
-		glDrawArrays(GL_TRIANGLES, 0, cubeGeometry.getVertices().size());
+		glDrawArrays(cubePrimitiveType, 0, cubeGeometry.getElementCount());
 
 		glBindVertexArray(sphereVAO);
 
@@ -270,7 +286,7 @@ int main(int argc, char** argv) {
 			projectionMatrix * camera.getViewMatrix() * sphere.getWorldMatrix();
 		glUniformMatrix4fv(worldViewProjectionMatrixUniform, 1, GL_FALSE,
 			glm::value_ptr(worldViewProjectionMatrix));
-		glDrawElements(GL_TRIANGLES, sphereGeometry.getIndices().size(), GL_UNSIGNED_INT, 0);
+		glDrawElements(spherePrimitiveType, sphereGeometry.getElementCount(), GL_UNSIGNED_INT, 0);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
@@ -328,7 +344,10 @@ int main(int argc, char** argv) {
 	}
 
 	glDeleteVertexArrays(1, &cubeVAO);
+	glDeleteVertexArrays(1, &sphereVAO);
 	glDeleteBuffers(1, &cubeVertexBuffer);
+	glDeleteBuffers(1, &sphereVertexBuffer);
+	glDeleteBuffers(1, &sphereIndexBuffer);
 	glDeleteProgram(drawProgram);
 
 	glfwDestroyWindow(window);

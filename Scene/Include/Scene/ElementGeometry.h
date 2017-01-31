@@ -23,6 +23,22 @@ namespace Scene {
 			return indices;
 		}
 
+		size_t getIndexDataSize() const {
+			return sizeof(uint32_t)*indices.size();
+		}
+
+		const uint32_t* getIndexData() const {
+			return indices.data();
+		}
+
+		uint32_t* getIndexData() {
+			return indices.data();
+		}
+
+		size_t getElementCount() const override {
+			return indices.size();
+		}
+
 	private:
 		std::vector<uint32_t> indices;
 	};
