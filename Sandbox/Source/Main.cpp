@@ -63,8 +63,12 @@ const char* vertexShaderSource =
 	"in vec3 vertexNormal;\n"
 	"out vec3 fragmentNormal;\n"
 	"uniform mat4 worldViewProjectionMatrix;\n"
+	"uniform vec4 orientation;\n"
+	"vec3 quatTransform(vec4 quat, vec3 vec){\n"
+	"	return vec + 2.0 * cross( cross( vec, quat.xyz ) + quat.w * vec, quat.xyz );\n"
+	"}\n"
 	"void main() {\n"
-	"	fragmentNormal = vertexNormal;\n"
+	"	fragmentNormal = quatTransform(orientation, vertexNormal);\n"
 	"	gl_Position = worldViewProjectionMatrix * vec4(vertexPosition, 1);\n"
 	"}\n";
 
@@ -223,6 +227,7 @@ int main(int argc, char** argv) {
 	GLint vertexPosition = glGetAttribLocation(drawProgram, "vertexPosition");
 	GLint vertexNormal = glGetAttribLocation(drawProgram, "vertexNormal");
 	GLint worldViewProjectionMatrixUniform = glGetUniformLocation(drawProgram, "worldViewProjectionMatrix");
+	GLint orientationUniform = glGetUniformLocation(drawProgram, "orientation");
 
 	GLuint cubeVAO;
 	glGenVertexArrays(1, &cubeVAO);
@@ -272,12 +277,14 @@ int main(int argc, char** argv) {
 			projectionMatrix * camera.getViewMatrix() * cube1.getWorldMatrix();
 		glUniformMatrix4fv(worldViewProjectionMatrixUniform, 1, GL_FALSE,
 			glm::value_ptr(worldViewProjectionMatrix));
+		glUniform4fv(orientationUniform, 1, glm::value_ptr(cube1.getOrientation()));
 		glDrawArrays(cubePrimitiveType, 0, cubeGeometry.getElementCount());
 
 		worldViewProjectionMatrix =
 			projectionMatrix * camera.getViewMatrix() * cube2.getWorldMatrix() * testScaleMatrix;
 		glUniformMatrix4fv(worldViewProjectionMatrixUniform, 1, GL_FALSE,
 			glm::value_ptr(worldViewProjectionMatrix));
+		glUniform4fv(orientationUniform, 1, glm::value_ptr(cube2.getOrientation()));
 		glDrawArrays(cubePrimitiveType, 0, cubeGeometry.getElementCount());
 
 		glBindVertexArray(sphereVAO);
@@ -286,6 +293,7 @@ int main(int argc, char** argv) {
 			projectionMatrix * camera.getViewMatrix() * sphere.getWorldMatrix();
 		glUniformMatrix4fv(worldViewProjectionMatrixUniform, 1, GL_FALSE,
 			glm::value_ptr(worldViewProjectionMatrix));
+		glUniform4fv(orientationUniform, 1, glm::value_ptr(sphere.getOrientation()));
 		glDrawElements(spherePrimitiveType, sphereGeometry.getElementCount(), GL_UNSIGNED_INT, 0);
 
 		glfwSwapBuffers(window);
