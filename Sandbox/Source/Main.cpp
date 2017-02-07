@@ -68,7 +68,7 @@ const char* vertexShaderSource =
 	"uniform mat4 worldViewProjectionMatrix;\n"
 	"uniform mat3 normalMatrix;\n"
 	"void main() {\n"
-	"	fragmentNormal = normalMatrix * vertexNormal;\n"
+	"	fragmentNormal = normalize(normalMatrix * vertexNormal);\n"
 	"	gl_Position = worldViewProjectionMatrix * vec4(vertexPosition, 1);\n"
 	"}\n";
 
