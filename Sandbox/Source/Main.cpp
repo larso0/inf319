@@ -5,6 +5,8 @@
 #include <Scene/Node.h>
 #include <Scene/Camera.h>
 #include <Render/MeshGeneration.h>
+#include <Render/RenderObject.h>
+#include <vector>
 
 using namespace std;
 using namespace Scene;
@@ -64,12 +66,9 @@ const char* vertexShaderSource =
 	"in vec3 vertexNormal;\n"
 	"out vec3 fragmentNormal;\n"
 	"uniform mat4 worldViewProjectionMatrix;\n"
-	"uniform vec4 orientation;\n"
-	"vec3 quatTransform(vec4 quat, vec3 vec){\n"
-	"	return vec + 2.0 * cross( cross( vec, quat.xyz ) + quat.w * vec, quat.xyz );\n"
-	"}\n"
+	"uniform mat3 normalMatrix;\n"
 	"void main() {\n"
-	"	fragmentNormal = quatTransform(orientation, vertexNormal);\n"
+	"	fragmentNormal = normalMatrix * vertexNormal;\n"
 	"	gl_Position = worldViewProjectionMatrix * vec4(vertexPosition, 1);\n"
 	"}\n";
 
@@ -228,7 +227,7 @@ int main(int argc, char** argv) {
 	GLint vertexPosition = glGetAttribLocation(drawProgram, "vertexPosition");
 	GLint vertexNormal = glGetAttribLocation(drawProgram, "vertexNormal");
 	GLint worldViewProjectionMatrixUniform = glGetUniformLocation(drawProgram, "worldViewProjectionMatrix");
-	GLint orientationUniform = glGetUniformLocation(drawProgram, "orientation");
+	GLint normalMatrixUniform = glGetUniformLocation(drawProgram, "normalMatrix");
 
 	GLuint cubeVAO;
 	glGenVertexArrays(1, &cubeVAO);
@@ -261,12 +260,40 @@ int main(int argc, char** argv) {
 	sphere.translate(0.f, 2.f, 0.f);
 	cube1.update();
 
+	vector<RenderObject> renderObjects{
+		RenderObject(&cubeMesh, &cube1),
+		RenderObject(&cubeMesh, &cube2),
+		RenderObject(&sphereMesh, &sphere)
+	};
+	renderObjects[1].setScale(0.2f, 2.f, 0.2f);
+
 	Camera camera;
 	camera.translate(0.f, 0.f, 3.f);
 	camera.update();
 
-	glm::mat4 projectionMatrix = glm::perspective(glm::radians(60.f), 800.f / 600.f, 0.1f, 100.f);
-	glm::mat4 testScaleMatrix = glm::scale(glm::mat4(), glm::vec3(0.2f, 2.f, 0.2f));
+	glm::mat4 projectionMatrix =
+		glm::perspective(glm::radians(60.f), 800.f / 600.f, 0.1f, 100.f);
+
+	auto renderObject = [&](const RenderObject& obj) {
+		glm::mat4 worldMatrix = obj.getNode()->getWorldMatrix() * obj.getScaleMatrix();
+		glm::mat4 worldViewProjectionMatrix = projectionMatrix * camera.getViewMatrix() * worldMatrix;
+		glm::mat3 normalMatrix =
+			glm::transpose(glm::inverse(glm::mat3(worldMatrix)));
+
+		glUniformMatrix4fv(worldViewProjectionMatrixUniform, 1, GL_FALSE,
+			glm::value_ptr(worldViewProjectionMatrix));
+		glUniformMatrix3fv(normalMatrixUniform, 1, GL_FALSE,
+			glm::value_ptr(normalMatrix));
+
+		if (obj.getMesh() == &cubeMesh) {
+			glBindVertexArray(cubeVAO);
+			glDrawArrays(cubePrimitiveType, 0, cubeMesh.getElementCount());
+		} else {
+			glBindVertexArray(sphereVAO);
+			glDrawElements(spherePrimitiveType, sphereMesh.getElementCount(),
+				GL_UNSIGNED_INT, 0);
+		}
+	};
 
 	double time = glfwGetTime();
 	while (!glfwWindowShouldClose(window)) {
@@ -274,28 +301,9 @@ int main(int argc, char** argv) {
 
 		glBindVertexArray(cubeVAO);
 
-		glm::mat4 worldViewProjectionMatrix =
-			projectionMatrix * camera.getViewMatrix() * cube1.getWorldMatrix();
-		glUniformMatrix4fv(worldViewProjectionMatrixUniform, 1, GL_FALSE,
-			glm::value_ptr(worldViewProjectionMatrix));
-		glUniform4fv(orientationUniform, 1, glm::value_ptr(cube1.getOrientation()));
-		glDrawArrays(cubePrimitiveType, 0, cubeMesh.getElementCount());
-
-		worldViewProjectionMatrix =
-			projectionMatrix * camera.getViewMatrix() * cube2.getWorldMatrix() * testScaleMatrix;
-		glUniformMatrix4fv(worldViewProjectionMatrixUniform, 1, GL_FALSE,
-			glm::value_ptr(worldViewProjectionMatrix));
-		glUniform4fv(orientationUniform, 1, glm::value_ptr(cube2.getOrientation()));
-		glDrawArrays(cubePrimitiveType, 0, cubeMesh.getElementCount());
-
-		glBindVertexArray(sphereVAO);
-
-		worldViewProjectionMatrix =
-			projectionMatrix * camera.getViewMatrix() * sphere.getWorldMatrix();
-		glUniformMatrix4fv(worldViewProjectionMatrixUniform, 1, GL_FALSE,
-			glm::value_ptr(worldViewProjectionMatrix));
-		glUniform4fv(orientationUniform, 1, glm::value_ptr(sphere.getOrientation()));
-		glDrawElements(spherePrimitiveType, sphereMesh.getElementCount(), GL_UNSIGNED_INT, 0);
+		for (const RenderObject& obj : renderObjects) {
+			renderObject(obj);
+		}
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
