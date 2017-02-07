@@ -1,11 +1,11 @@
-#ifndef SCENE_GEOMETRY_H
-#define SCENE_GEOMETRY_H
+#ifndef RENDER_MESH_H
+#define RENDER_MESH_H
 
 #include "Vertex.h"
 #include <vector>
 
-namespace Scene {
-	class Geometry {
+namespace Render {
+	class Mesh {
 	public:
 		enum class PrimitiveType {
 			Points,
@@ -17,9 +17,9 @@ namespace Scene {
 			TriangleFan
 		};
 
-		Geometry(PrimitiveType pt = PrimitiveType::Triangles) :
+		Mesh(PrimitiveType pt = PrimitiveType::Triangles) :
 			primitiveType(pt) {}
-		virtual ~Geometry() {}
+		virtual ~Mesh() {}
 
 		uint32_t addVertex(const Vertex& vertex) {
 			uint32_t i = vertices.size();

@@ -4,10 +4,11 @@
 #include <sstream>
 #include <Scene/Node.h>
 #include <Scene/Camera.h>
-#include <Scene/GeometryGeneration.h>
+#include <Render/MeshGeneration.h>
 
 using namespace std;
 using namespace Scene;
+using namespace Render;
 
 class Configuration {
 public:
@@ -137,15 +138,15 @@ GLuint createDrawProgram() {
 	return handle;
 }
 
-GLenum primitiveType(Geometry::PrimitiveType pt) {
+GLenum primitiveType(Mesh::PrimitiveType pt) {
 	switch (pt) {
-	case Geometry::PrimitiveType::Points: return GL_POINTS;
-	case Geometry::PrimitiveType::Lines: return GL_LINES;
-	case Geometry::PrimitiveType::LineLoop: return GL_LINE_LOOP;
-	case Geometry::PrimitiveType::LineStrip: return GL_LINE_STRIP;
-	case Geometry::PrimitiveType::Triangles: return GL_TRIANGLES;
-	case Geometry::PrimitiveType::TriangleStrip: return GL_TRIANGLE_STRIP;
-	case Geometry::PrimitiveType:: TriangleFan: return GL_TRIANGLE_FAN;
+	case Mesh::PrimitiveType::Points: return GL_POINTS;
+	case Mesh::PrimitiveType::Lines: return GL_LINES;
+	case Mesh::PrimitiveType::LineLoop: return GL_LINE_LOOP;
+	case Mesh::PrimitiveType::LineStrip: return GL_LINE_STRIP;
+	case Mesh::PrimitiveType::Triangles: return GL_TRIANGLES;
+	case Mesh::PrimitiveType::TriangleStrip: return GL_TRIANGLE_STRIP;
+	case Mesh::PrimitiveType:: TriangleFan: return GL_TRIANGLE_FAN;
 	}
 	throw invalid_argument("Unknown primitive type");
 }
@@ -190,18 +191,18 @@ int main(int argc, char** argv) {
 	glViewport(0, 0, config.width, config.height);
 
 	GLuint drawProgram = createDrawProgram();
-	Geometry cubeGeometry = generateCube();
-	GLenum cubePrimitiveType = primitiveType(cubeGeometry.getPrimitiveType());
-	ElementGeometry sphereGeometry = generateSphere(5);
-	GLenum spherePrimitiveType = primitiveType(sphereGeometry.getPrimitiveType());
+	Mesh cubeMesh = generateCube();
+	GLenum cubePrimitiveType = primitiveType(cubeMesh.getPrimitiveType());
+	IndexedMesh sphereMesh = generateSphere(5);
+	GLenum spherePrimitiveType = primitiveType(sphereMesh.getPrimitiveType());
 
 	GLuint cubeVertexBuffer;
 	glGenBuffers(1, &cubeVertexBuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, cubeVertexBuffer);
 	glBufferData(
 		GL_ARRAY_BUFFER,
-		cubeGeometry.getVertexDataSize(),
-		cubeGeometry.getVertexData(),
+		cubeMesh.getVertexDataSize(),
+		cubeMesh.getVertexData(),
 		GL_STATIC_DRAW);
 
 	GLuint sphereVertexBuffer;
@@ -209,8 +210,8 @@ int main(int argc, char** argv) {
 	glBindBuffer(GL_ARRAY_BUFFER, sphereVertexBuffer);
 	glBufferData(
 		GL_ARRAY_BUFFER,
-		sphereGeometry.getVertexDataSize(),
-		sphereGeometry.getVertexData(),
+		sphereMesh.getVertexDataSize(),
+		sphereMesh.getVertexData(),
 		GL_STATIC_DRAW);
 
 	GLuint sphereIndexBuffer;
@@ -218,8 +219,8 @@ int main(int argc, char** argv) {
 	glBindBuffer(GL_ARRAY_BUFFER, sphereIndexBuffer);
 	glBufferData(
 		GL_ARRAY_BUFFER,
-		sphereGeometry.getIndexDataSize(),
-		sphereGeometry.getIndexData(),
+		sphereMesh.getIndexDataSize(),
+		sphereMesh.getIndexData(),
 		GL_STATIC_DRAW);
 
 	glUseProgram(drawProgram);
@@ -235,10 +236,10 @@ int main(int argc, char** argv) {
 	glBindBuffer(GL_ARRAY_BUFFER, cubeVertexBuffer);
 	glEnableVertexAttribArray(vertexPosition);
 	glVertexAttribPointer(vertexPosition, 3, GL_FLOAT, GL_FALSE,
-		Vertex::STRIDE, (const GLvoid*)Vertex::POSITION_OFFSET);
+		Vertex::Stride, (const GLvoid*)Vertex::PositionOffset);
 	glEnableVertexAttribArray(vertexNormal);
 	glVertexAttribPointer(vertexNormal, 3, GL_FLOAT, GL_FALSE,
-		Vertex::STRIDE, (const GLvoid*)Vertex::NORMAL_OFFSET);
+		Vertex::Stride, (const GLvoid*)Vertex::NormalOffset);
 
 	GLuint sphereVAO;
 	glGenVertexArrays(1, &sphereVAO);
@@ -246,10 +247,10 @@ int main(int argc, char** argv) {
 	glBindBuffer(GL_ARRAY_BUFFER, sphereVertexBuffer);
 	glEnableVertexAttribArray(vertexPosition);
 	glVertexAttribPointer(vertexPosition, 3, GL_FLOAT, GL_FALSE,
-		Vertex::STRIDE, (const GLvoid*)Vertex::POSITION_OFFSET);
+		Vertex::Stride, (const GLvoid*)Vertex::PositionOffset);
 	glEnableVertexAttribArray(vertexNormal);
 	glVertexAttribPointer(vertexNormal, 3, GL_FLOAT, GL_FALSE,
-		Vertex::STRIDE, (const GLvoid*)Vertex::NORMAL_OFFSET);
+		Vertex::Stride, (const GLvoid*)Vertex::NormalOffset);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphereIndexBuffer);
 
 	Node cube1;
@@ -278,14 +279,14 @@ int main(int argc, char** argv) {
 		glUniformMatrix4fv(worldViewProjectionMatrixUniform, 1, GL_FALSE,
 			glm::value_ptr(worldViewProjectionMatrix));
 		glUniform4fv(orientationUniform, 1, glm::value_ptr(cube1.getOrientation()));
-		glDrawArrays(cubePrimitiveType, 0, cubeGeometry.getElementCount());
+		glDrawArrays(cubePrimitiveType, 0, cubeMesh.getElementCount());
 
 		worldViewProjectionMatrix =
 			projectionMatrix * camera.getViewMatrix() * cube2.getWorldMatrix() * testScaleMatrix;
 		glUniformMatrix4fv(worldViewProjectionMatrixUniform, 1, GL_FALSE,
 			glm::value_ptr(worldViewProjectionMatrix));
 		glUniform4fv(orientationUniform, 1, glm::value_ptr(cube2.getOrientation()));
-		glDrawArrays(cubePrimitiveType, 0, cubeGeometry.getElementCount());
+		glDrawArrays(cubePrimitiveType, 0, cubeMesh.getElementCount());
 
 		glBindVertexArray(sphereVAO);
 
@@ -294,7 +295,7 @@ int main(int argc, char** argv) {
 		glUniformMatrix4fv(worldViewProjectionMatrixUniform, 1, GL_FALSE,
 			glm::value_ptr(worldViewProjectionMatrix));
 		glUniform4fv(orientationUniform, 1, glm::value_ptr(sphere.getOrientation()));
-		glDrawElements(spherePrimitiveType, sphereGeometry.getElementCount(), GL_UNSIGNED_INT, 0);
+		glDrawElements(spherePrimitiveType, sphereMesh.getElementCount(), GL_UNSIGNED_INT, 0);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();

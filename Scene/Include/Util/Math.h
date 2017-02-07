@@ -1,5 +1,5 @@
-#ifndef SCENE_MATH_H
-#define SCENE_MATH_H
+#ifndef UTIL_MATH_H
+#define UTIL_MATH_H
 
 #define GLM_FORCE_SWIZZLE
 #define GLM_FORCE_RADIANS

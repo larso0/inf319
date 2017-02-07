@@ -1,13 +1,13 @@
-#ifndef SCENE_ELEMENTGEOMETRY_H
-#define SCENE_ELEMENTGEOMETRY_H
+#ifndef RENDER_INDEXEDMESH_H
+#define RENDER_INDEXEDMESH_H
 
-#include "Geometry.h"
+#include <Render/Mesh.h>
 
-namespace Scene {
-	class ElementGeometry : public Geometry {
+namespace Render {
+	class IndexedMesh : public Mesh {
 	public:
-		ElementGeometry(PrimitiveType pt = PrimitiveType::Triangles) :
-			Geometry(pt) {}
+		IndexedMesh(PrimitiveType pt = PrimitiveType::Triangles) :
+			Mesh(pt) {}
 
 		void addIndex(uint32_t index) {
 			indices.push_back(index);

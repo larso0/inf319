@@ -1,7 +1,7 @@
 #ifndef SCENE_NODE_H
 #define SCENE_NODE_H
 
-#include "Math.h"
+#include <Util/Math.h>
 #include <vector>
 
 namespace Scene {
