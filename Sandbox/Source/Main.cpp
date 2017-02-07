@@ -66,9 +66,9 @@ const char* vertexShaderSource =
 	"in vec3 vertexNormal;\n"
 	"out vec3 fragmentNormal;\n"
 	"uniform mat4 worldViewProjectionMatrix;\n"
-	"uniform mat3 normalMatrix;\n"
+	"uniform mat4 normalMatrix;\n"
 	"void main() {\n"
-	"	fragmentNormal = normalize(normalMatrix * vertexNormal);\n"
+	"	fragmentNormal = normalize(normalMatrix * vec4(vertexNormal, 0)).xyz;\n"
 	"	gl_Position = worldViewProjectionMatrix * vec4(vertexPosition, 1);\n"
 	"}\n";
 
@@ -277,12 +277,12 @@ int main(int argc, char** argv) {
 	auto renderObject = [&](const RenderObject& obj) {
 		glm::mat4 worldMatrix = obj.getNode()->getWorldMatrix() * obj.getScaleMatrix();
 		glm::mat4 worldViewProjectionMatrix = projectionMatrix * camera.getViewMatrix() * worldMatrix;
-		glm::mat3 normalMatrix =
-			glm::transpose(glm::inverse(glm::mat3(worldMatrix)));
+		glm::mat4 normalMatrix =
+			glm::transpose(glm::inverse(worldMatrix));
 
 		glUniformMatrix4fv(worldViewProjectionMatrixUniform, 1, GL_FALSE,
 			glm::value_ptr(worldViewProjectionMatrix));
-		glUniformMatrix3fv(normalMatrixUniform, 1, GL_FALSE,
+		glUniformMatrix4fv(normalMatrixUniform, 1, GL_FALSE,
 			glm::value_ptr(normalMatrix));
 
 		if (obj.getMesh() == &cubeMesh) {
