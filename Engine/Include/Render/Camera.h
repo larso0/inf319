@@ -33,7 +33,7 @@ namespace Render {
 			projectionMatrix = glm::perspective(fov, ratio, near, far);
 		}
 
-		void setPerspectiveOrtho(float left, float right, float top,
+		void setOrthoProjection(float left, float right, float top,
 			float bottom, float near, float far) {
 			projectionMatrix = glm::ortho(left, right, top, bottom, near, far);
 		}
