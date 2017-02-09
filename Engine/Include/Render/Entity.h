@@ -1,15 +1,15 @@
-#ifndef RENDER_RENDEROBJECT_H
-#define RENDER_RENDEROBJECT_H
+#ifndef RENDER_ENTITY_H
+#define RENDER_ENTITY_H
 
 #include <Render/Mesh.h>
 #include <Scene/Node.h>
 
 namespace Render {
-	class RenderObject {
+	class Entity {
 	public:
-		RenderObject() : mesh(nullptr), node(nullptr) {}
-		RenderObject(Mesh* m, Scene::Node* n) : mesh(m), node(n) {}
-		~RenderObject() {}
+		Entity() : mesh(nullptr), node(nullptr) {}
+		Entity(Mesh* m, Scene::Node* n) : mesh(m), node(n) {}
+		~Entity() {}
 
 		Mesh* getMesh() {
 			return mesh;

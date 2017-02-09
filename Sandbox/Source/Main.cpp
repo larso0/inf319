@@ -1,11 +1,11 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <Render/Entity.h>
 #include <iostream>
 #include <sstream>
 #include <Scene/Node.h>
 #include <Scene/Camera.h>
 #include <Render/MeshGeneration.h>
-#include <Render/RenderObject.h>
 #include <vector>
 
 using namespace std;
@@ -286,12 +286,12 @@ int main(int argc, char** argv) {
 	sphere.translate(0.f, 2.f, 0.f);
 	cube1.update();
 
-	vector<RenderObject> renderObjects{
-		RenderObject(&cubeMesh, &cube1),
-		RenderObject(&cubeMesh, &cube2),
-		RenderObject(&sphereMesh, &sphere)
+	vector<Entity> entities{
+		Entity(&cubeMesh, &cube1),
+		Entity(&cubeMesh, &cube2),
+		Entity(&sphereMesh, &sphere)
 	};
-	renderObjects[1].setScale(0.2f, 2.f, 0.2f);
+	entities[1].setScale(0.2f, 2.f, 0.2f);
 
 	Camera camera;
 	camera.translate(0.f, 0.f, 3.f);
@@ -300,8 +300,8 @@ int main(int argc, char** argv) {
 	glm::mat4 projectionMatrix =
 		glm::perspective(glm::radians(60.f), 800.f / 600.f, 0.1f, 100.f);
 
-	auto renderObject = [&](const RenderObject& obj) {
-		glm::mat4 worldMatrix = obj.getNode()->getWorldMatrix() * obj.getScaleMatrix();
+	auto render = [&](const Entity& e) {
+		glm::mat4 worldMatrix = e.getNode()->getWorldMatrix() * e.getScaleMatrix();
 		glm::mat4 worldViewProjectionMatrix = projectionMatrix * camera.getViewMatrix() * worldMatrix;
 		glm::mat4 normalMatrix =
 			glm::transpose(glm::inverse(worldMatrix));
@@ -311,7 +311,7 @@ int main(int argc, char** argv) {
 		glUniformMatrix4fv(normalMatrixUniform, 1, GL_FALSE,
 			glm::value_ptr(normalMatrix));
 
-		if (obj.getMesh() == &cubeMesh) {
+		if (e.getMesh() == &cubeMesh) {
 			glBindVertexArray(cubeVAO);
 			glDrawArrays(cubePrimitiveType, 0, cubeMesh.getElementCount());
 		} else {
@@ -327,8 +327,8 @@ int main(int argc, char** argv) {
 
 		glBindVertexArray(cubeVAO);
 
-		for (const RenderObject& obj : renderObjects) {
-			renderObject(obj);
+		for (const Entity& e : entities) {
+			render(e);
 		}
 
 		glfwSwapBuffers(window);
