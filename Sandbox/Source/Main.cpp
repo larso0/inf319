@@ -150,6 +150,30 @@ GLenum primitiveType(Mesh::PrimitiveType pt) {
 	throw invalid_argument("Unknown primitive type");
 }
 
+GLuint createVertexBuffer(const Mesh& mesh) {
+	GLuint buf;
+	glGenBuffers(1, &buf);
+	glBindBuffer(GL_ARRAY_BUFFER, buf);
+	glBufferData(
+		GL_ARRAY_BUFFER,
+		mesh.getVertexDataSize(),
+		mesh.getVertexData(),
+		GL_STATIC_DRAW);
+	return buf;
+}
+
+GLuint createIndexBuffer(const IndexedMesh& mesh) {
+	GLuint buf;
+	glGenBuffers(1, &buf);
+	glBindBuffer(GL_ARRAY_BUFFER, buf);
+	glBufferData(
+		GL_ARRAY_BUFFER,
+		mesh.getIndexDataSize(),
+		mesh.getIndexData(),
+		GL_STATIC_DRAW);
+	return buf;
+}
+
 int main(int argc, char** argv) {
 	if (!glfwInit()) {
 		cerr << "Failed to initialize GLFW.\n";
@@ -195,39 +219,16 @@ int main(int argc, char** argv) {
 	IndexedMesh sphereMesh = generateSphere(5);
 	GLenum spherePrimitiveType = primitiveType(sphereMesh.getPrimitiveType());
 
-	GLuint cubeVertexBuffer;
-	glGenBuffers(1, &cubeVertexBuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, cubeVertexBuffer);
-	glBufferData(
-		GL_ARRAY_BUFFER,
-		cubeMesh.getVertexDataSize(),
-		cubeMesh.getVertexData(),
-		GL_STATIC_DRAW);
-
-	GLuint sphereVertexBuffer;
-	glGenBuffers(1, &sphereVertexBuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, sphereVertexBuffer);
-	glBufferData(
-		GL_ARRAY_BUFFER,
-		sphereMesh.getVertexDataSize(),
-		sphereMesh.getVertexData(),
-		GL_STATIC_DRAW);
-
-	GLuint sphereIndexBuffer;
-	glGenBuffers(1, &sphereIndexBuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, sphereIndexBuffer);
-	glBufferData(
-		GL_ARRAY_BUFFER,
-		sphereMesh.getIndexDataSize(),
-		sphereMesh.getIndexData(),
-		GL_STATIC_DRAW);
-
-	glUseProgram(drawProgram);
+	GLuint cubeVertexBuffer = createVertexBuffer(cubeMesh);
+	GLuint sphereVertexBuffer = createVertexBuffer(sphereMesh);
+	GLuint sphereIndexBuffer = createIndexBuffer(sphereMesh);
 
 	GLint vertexPosition = glGetAttribLocation(drawProgram, "vertexPosition");
 	GLint vertexNormal = glGetAttribLocation(drawProgram, "vertexNormal");
 	GLint worldViewProjectionMatrixUniform = glGetUniformLocation(drawProgram, "worldViewProjectionMatrix");
 	GLint normalMatrixUniform = glGetUniformLocation(drawProgram, "normalMatrix");
+
+	glUseProgram(drawProgram);
 
 	GLuint cubeVAO;
 	glGenVertexArrays(1, &cubeVAO);
