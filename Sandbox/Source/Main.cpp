@@ -174,6 +174,51 @@ GLuint createIndexBuffer(const IndexedMesh& mesh) {
 	return buf;
 }
 
+GLuint createVAO(
+	GLuint vertexBuffer,
+	GLint vertexPosition,
+	GLint vertexNormal,
+	GLint vertexTextureCoordinate)
+{
+	GLuint vao;
+	glGenVertexArrays(1, &vao);
+	glBindVertexArray(vao);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+
+	if (vertexPosition >= 0) {
+		glEnableVertexAttribArray(vertexPosition);
+		glVertexAttribPointer(vertexPosition, 3, GL_FLOAT, GL_FALSE,
+			Vertex::Stride, (const GLvoid*) Vertex::PositionOffset);
+	}
+
+	if (vertexNormal >= 0) {
+		glEnableVertexAttribArray(vertexNormal);
+		glVertexAttribPointer(vertexNormal, 3, GL_FLOAT, GL_FALSE,
+			Vertex::Stride, (const GLvoid*) Vertex::NormalOffset);
+	}
+
+	if (vertexTextureCoordinate >= 0) {
+		glEnableVertexAttribArray(vertexTextureCoordinate);
+		glVertexAttribPointer(vertexTextureCoordinate, 2, GL_FLOAT, GL_FALSE,
+			Vertex::Stride, (const GLvoid*) Vertex::TextureCoordinateOffset);
+	}
+
+	return vao;
+}
+
+GLuint createVAOIndexed(
+	GLuint vertexBuffer,
+	GLuint indexBuffer,
+	GLint vertexPosition,
+	GLint vertexNormal,
+	GLint vertexTextureCoordinate)
+{
+	GLuint vao = createVAO(vertexBuffer, vertexPosition, vertexNormal,
+		vertexTextureCoordinate);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+	return vao;
+}
+
 int main(int argc, char** argv) {
 	if (!glfwInit()) {
 		cerr << "Failed to initialize GLFW.\n";
@@ -230,28 +275,8 @@ int main(int argc, char** argv) {
 
 	glUseProgram(drawProgram);
 
-	GLuint cubeVAO;
-	glGenVertexArrays(1, &cubeVAO);
-	glBindVertexArray(cubeVAO);
-	glBindBuffer(GL_ARRAY_BUFFER, cubeVertexBuffer);
-	glEnableVertexAttribArray(vertexPosition);
-	glVertexAttribPointer(vertexPosition, 3, GL_FLOAT, GL_FALSE,
-		Vertex::Stride, (const GLvoid*)Vertex::PositionOffset);
-	glEnableVertexAttribArray(vertexNormal);
-	glVertexAttribPointer(vertexNormal, 3, GL_FLOAT, GL_FALSE,
-		Vertex::Stride, (const GLvoid*)Vertex::NormalOffset);
-
-	GLuint sphereVAO;
-	glGenVertexArrays(1, &sphereVAO);
-	glBindVertexArray(sphereVAO);
-	glBindBuffer(GL_ARRAY_BUFFER, sphereVertexBuffer);
-	glEnableVertexAttribArray(vertexPosition);
-	glVertexAttribPointer(vertexPosition, 3, GL_FLOAT, GL_FALSE,
-		Vertex::Stride, (const GLvoid*)Vertex::PositionOffset);
-	glEnableVertexAttribArray(vertexNormal);
-	glVertexAttribPointer(vertexNormal, 3, GL_FLOAT, GL_FALSE,
-		Vertex::Stride, (const GLvoid*)Vertex::NormalOffset);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphereIndexBuffer);
+	GLuint cubeVAO = createVAO(cubeVertexBuffer, vertexPosition, vertexNormal, -1);
+	GLuint sphereVAO = createVAOIndexed(sphereVertexBuffer, sphereIndexBuffer, vertexPosition, vertexNormal, -1);
 
 	Node cube1;
 	Node cube2(&cube1);
