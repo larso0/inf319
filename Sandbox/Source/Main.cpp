@@ -4,7 +4,7 @@
 #include <iostream>
 #include <sstream>
 #include <Scene/Node.h>
-#include <Scene/Camera.h>
+#include <Render/Camera.h>
 #include <Render/MeshGeneration.h>
 #include <vector>
 
@@ -293,16 +293,17 @@ int main(int argc, char** argv) {
 	};
 	entities[1].setScale(0.2f, 2.f, 0.2f);
 
-	Camera camera;
-	camera.translate(0.f, 0.f, 3.f);
-	camera.update();
+	Node cameraNode;
+	cameraNode.translate(0.f, 0.f, 3.f);
+	cameraNode.update();
 
-	glm::mat4 projectionMatrix =
-		glm::perspective(glm::radians(60.f), 800.f / 600.f, 0.1f, 100.f);
+	Camera camera(&cameraNode);
+	camera.setPerspectiveProjection(glm::radians(60.f), 4.f/3.f, 0.1f, 100.f);
+	camera.update();
 
 	auto render = [&](const Entity& e) {
 		glm::mat4 worldMatrix = e.getNode()->getWorldMatrix() * e.getScaleMatrix();
-		glm::mat4 worldViewProjectionMatrix = projectionMatrix * camera.getViewMatrix() * worldMatrix;
+		glm::mat4 worldViewProjectionMatrix = camera.getProjectionMatrix() * camera.getViewMatrix() * worldMatrix;
 		glm::mat4 normalMatrix =
 			glm::transpose(glm::inverse(worldMatrix));
 
@@ -336,8 +337,8 @@ int main(int argc, char** argv) {
 
 		if (config.mouseHidden) {
 			glm::vec3 cameraDirection = Math::quatTransform(
-				camera.getOrientation(), glm::vec3(0.f, 0.f, -1.f));
-			glm::vec3 cameraRight = Math::quatTransform(camera.getOrientation(),
+				cameraNode.getOrientation(), glm::vec3(0.f, 0.f, -1.f));
+			glm::vec3 cameraRight = Math::quatTransform(cameraNode.getOrientation(),
 				glm::vec3(1.f, 0.f, 0.f));
 
 			double seconds = glfwGetTime();
@@ -376,11 +377,12 @@ int main(int argc, char** argv) {
 
 			if (moved) {
 				movement = glm::normalize(movement) * delta * config.movementSpeed;
-				camera.translate(movement);
+				cameraNode.translate(movement);
 			}
 
-			camera.setRotation(config.yaw, glm::vec3(0.f, 1.f, 0.f));
-			camera.rotate(config.pitch, glm::vec3(1.f, 0.f, 0.f));
+			cameraNode.setRotation(config.yaw, glm::vec3(0.f, 1.f, 0.f));
+			cameraNode.rotate(config.pitch, glm::vec3(1.f, 0.f, 0.f));
+			cameraNode.update();
 			camera.update();
 
 		}
