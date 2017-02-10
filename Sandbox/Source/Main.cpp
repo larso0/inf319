@@ -6,7 +6,10 @@
 #include <Scene/Node.h>
 #include <Render/Camera.h>
 #include <Render/MeshGeneration.h>
+#include <Render/Renderer.h>
 #include <vector>
+#include <unordered_map>
+#include <memory>
 
 using namespace std;
 using namespace Scene;
@@ -219,6 +222,92 @@ GLuint createVAOIndexed(
 	return vao;
 }
 
+class GLRenderer : public Renderer {
+public:
+	GLRenderer() {
+		drawProgram = createDrawProgram();
+		vertexPosition = glGetAttribLocation(drawProgram, "vertexPosition");
+		vertexNormal = glGetAttribLocation(drawProgram, "vertexNormal");
+		vertexTextureCoordinate = glGetAttribLocation(drawProgram, "vertexTextureCoordinate");
+		worldViewProjectionMatrixUniform = glGetUniformLocation(drawProgram, "worldViewProjectionMatrix");
+		normalMatrixUniform = glGetUniformLocation(drawProgram, "normalMatrix");
+		glUseProgram(drawProgram);
+	}
+
+	~GLRenderer() {
+		glDeleteProgram(drawProgram);
+	}
+
+	void render(const Camera& camera, const vector<Entity>& entities) override {
+		for (const Entity& e : entities) {
+			const Mesh* mesh = e.getMesh();
+			auto result = meshCache.find(mesh);
+			if (result == meshCache.end()) {
+				shared_ptr<MeshGLObjects> glObjects = make_shared<MeshGLObjects>();
+				glObjects->primitiveType = primitiveType(mesh->getPrimitiveType());
+				GLuint vertexBuffer = createVertexBuffer(*mesh);
+				glObjects->buffers.push_back(vertexBuffer);
+				const IndexedMesh* indexedMesh = dynamic_cast<const IndexedMesh*>(mesh);
+				if (indexedMesh) {
+					GLuint indexBuffer = createIndexBuffer(*indexedMesh);
+					glObjects->buffers.push_back(indexBuffer);
+					glObjects->vao = createVAOIndexed(vertexBuffer, indexBuffer,
+						vertexPosition, vertexNormal, vertexTextureCoordinate);
+					glObjects->drawFunction = drawElements;
+				} else {
+					glObjects->vao = createVAO(vertexBuffer, vertexPosition,
+						vertexNormal, vertexTextureCoordinate);
+					glObjects->drawFunction = drawArrays;
+				}
+				meshCache[mesh] = glObjects;
+			}
+
+			glm::mat4 worldMatrix = e.getNode()->getWorldMatrix() * e.getScaleMatrix();
+			glm::mat4 worldViewProjectionMatrix = camera.getProjectionMatrix() * camera.getViewMatrix() * worldMatrix;
+			glm::mat4 normalMatrix =
+				glm::transpose(glm::inverse(worldMatrix));
+
+			glUniformMatrix4fv(worldViewProjectionMatrixUniform, 1, GL_FALSE,
+				glm::value_ptr(worldViewProjectionMatrix));
+			glUniformMatrix4fv(normalMatrixUniform, 1, GL_FALSE,
+				glm::value_ptr(normalMatrix));
+
+			shared_ptr<MeshGLObjects> glObjects = meshCache[mesh];
+			glBindVertexArray(glObjects->vao);
+			glObjects->drawFunction(glObjects->primitiveType, mesh->getElementCount());
+		}
+
+	}
+
+private:
+	class MeshGLObjects {
+	public:
+		MeshGLObjects() : primitiveType(GL_TRIANGLES), vao(0), drawFunction(nullptr) {}
+		~MeshGLObjects() {
+			glDeleteBuffers(buffers.size(), buffers.data());
+			glDeleteVertexArrays(1, &vao);
+		}
+
+		GLenum primitiveType;
+		vector<GLuint> buffers;
+		GLuint vao;
+		void (*drawFunction)(GLenum, GLsizei);
+	};
+
+	static void drawArrays(GLenum primitiveType, GLsizei count) {
+		glDrawArrays(primitiveType, 0, count);
+	}
+
+	static void drawElements(GLenum primitiveType, GLsizei count) {
+		glDrawElements(primitiveType, count, GL_UNSIGNED_INT, 0);
+	}
+
+	GLuint drawProgram;
+	GLint vertexPosition, vertexNormal, vertexTextureCoordinate;
+	GLint worldViewProjectionMatrixUniform, normalMatrixUniform;
+	unordered_map<const Mesh*, shared_ptr<MeshGLObjects>> meshCache;
+};
+
 int main(int argc, char** argv) {
 	if (!glfwInit()) {
 		cerr << "Failed to initialize GLFW.\n";
@@ -258,25 +347,10 @@ int main(int argc, char** argv) {
 	glClearColor(0.5f, 0.5f, 0.5f, 1.f);
 	glViewport(0, 0, config.width, config.height);
 
-	GLuint drawProgram = createDrawProgram();
+	GLRenderer renderer;
+
 	Mesh cubeMesh = generateCube();
-	GLenum cubePrimitiveType = primitiveType(cubeMesh.getPrimitiveType());
 	IndexedMesh sphereMesh = generateSphere(5);
-	GLenum spherePrimitiveType = primitiveType(sphereMesh.getPrimitiveType());
-
-	GLuint cubeVertexBuffer = createVertexBuffer(cubeMesh);
-	GLuint sphereVertexBuffer = createVertexBuffer(sphereMesh);
-	GLuint sphereIndexBuffer = createIndexBuffer(sphereMesh);
-
-	GLint vertexPosition = glGetAttribLocation(drawProgram, "vertexPosition");
-	GLint vertexNormal = glGetAttribLocation(drawProgram, "vertexNormal");
-	GLint worldViewProjectionMatrixUniform = glGetUniformLocation(drawProgram, "worldViewProjectionMatrix");
-	GLint normalMatrixUniform = glGetUniformLocation(drawProgram, "normalMatrix");
-
-	glUseProgram(drawProgram);
-
-	GLuint cubeVAO = createVAO(cubeVertexBuffer, vertexPosition, vertexNormal, -1);
-	GLuint sphereVAO = createVAOIndexed(sphereVertexBuffer, sphereIndexBuffer, vertexPosition, vertexNormal, -1);
 
 	Node cube1;
 	Node cube2(&cube1);
@@ -301,36 +375,11 @@ int main(int argc, char** argv) {
 	camera.setPerspectiveProjection(glm::radians(60.f), 4.f/3.f, 0.1f, 100.f);
 	camera.update();
 
-	auto render = [&](const Entity& e) {
-		glm::mat4 worldMatrix = e.getNode()->getWorldMatrix() * e.getScaleMatrix();
-		glm::mat4 worldViewProjectionMatrix = camera.getProjectionMatrix() * camera.getViewMatrix() * worldMatrix;
-		glm::mat4 normalMatrix =
-			glm::transpose(glm::inverse(worldMatrix));
-
-		glUniformMatrix4fv(worldViewProjectionMatrixUniform, 1, GL_FALSE,
-			glm::value_ptr(worldViewProjectionMatrix));
-		glUniformMatrix4fv(normalMatrixUniform, 1, GL_FALSE,
-			glm::value_ptr(normalMatrix));
-
-		if (e.getMesh() == &cubeMesh) {
-			glBindVertexArray(cubeVAO);
-			glDrawArrays(cubePrimitiveType, 0, cubeMesh.getElementCount());
-		} else {
-			glBindVertexArray(sphereVAO);
-			glDrawElements(spherePrimitiveType, sphereMesh.getElementCount(),
-				GL_UNSIGNED_INT, 0);
-		}
-	};
-
 	double time = glfwGetTime();
 	while (!glfwWindowShouldClose(window)) {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		glBindVertexArray(cubeVAO);
-
-		for (const Entity& e : entities) {
-			render(e);
-		}
+		renderer.render(camera, entities);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
@@ -387,13 +436,6 @@ int main(int argc, char** argv) {
 
 		}
 	}
-
-	glDeleteVertexArrays(1, &cubeVAO);
-	glDeleteVertexArrays(1, &sphereVAO);
-	glDeleteBuffers(1, &cubeVertexBuffer);
-	glDeleteBuffers(1, &sphereVertexBuffer);
-	glDeleteBuffers(1, &sphereIndexBuffer);
-	glDeleteProgram(drawProgram);
 
 	glfwDestroyWindow(window);
 	glfwTerminate();

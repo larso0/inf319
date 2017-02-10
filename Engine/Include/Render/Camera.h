@@ -16,11 +16,11 @@ namespace Render {
 			return node;
 		}
 
-		const glm::mat4& getViewMatrix() {
+		const glm::mat4& getViewMatrix() const {
 			return viewMatrix;
 		}
 
-		const glm::mat4& getProjectionMatrix() {
+		const glm::mat4& getProjectionMatrix() const {
 			return projectionMatrix;
 		}
 
