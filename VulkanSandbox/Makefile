@@ -8,7 +8,7 @@ SRC=$(wildcard Source/*.cpp) $(wildcard Source/*/*.cpp)
 HEADERS=$(wildcard Source/*.h) $(wildcard Source/*/*.h)
 OBJ=$(patsubst %.cpp, $(BUILD)/%.o, $(SRC))
 
-CFLAGS=-std=c++11
+CFLAGS=-std=c++11 -g
 LDFLAGS=-lglfw -lvulkan
 
 all: $(SHADER_OBJ) $(TARGET)
