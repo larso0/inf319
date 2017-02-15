@@ -2,11 +2,22 @@
 #include <vulkan/vulkan.h>
 #include <iostream>
 #include <stdexcept>
+#include "Context.h"
+#include <vector>
+#include <algorithm>
+#include <cstring>
+#include <sstream>
 
 using namespace std;
 
-static GLFWwindow* window;
-static VkInstance instance;
+static Context context;
+
+#ifndef NDEBUG
+PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallback = nullptr;
+PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallback = nullptr;
+PFN_vkDebugReportMessageEXT vkDebugReportMessage = nullptr;
+#endif
+
 
 void createWindow() {
 	if (!glfwInit()) {
@@ -15,10 +26,44 @@ void createWindow() {
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-	if (!(window = glfwCreateWindow(800, 600, "VulkanSandbox", nullptr, nullptr))) {
-		glfwTerminate();
+	if (!(context.window = glfwCreateWindow(800, 600, "VulkanSandbox", nullptr, nullptr))) {
 		throw runtime_error("Error creating GLFW window.");
 	}
+}
+
+#ifndef NDEBUG
+vector<VkLayerProperties> findAvailableLayers() {
+	uint32_t count = 0;
+	vkEnumerateInstanceLayerProperties(&count, nullptr);
+	vector<VkLayerProperties> layers(count);
+	vkEnumerateInstanceLayerProperties(&count, layers.data());
+	return layers;
+}
+#endif
+
+vector<const char*> getRequiredExtensions() {
+    unsigned n = 0;
+    const char** es;
+    es = glfwGetRequiredInstanceExtensions(&n);
+    vector<const char*> requiredExtensions(es, es + n);
+#ifndef NDEBUG
+    requiredExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+#endif
+    vkEnumerateInstanceExtensionProperties(nullptr, &n, nullptr);
+    vector<VkExtensionProperties> available(n);
+    vkEnumerateInstanceExtensionProperties(nullptr, &n, available.data());
+    n = 0;
+    for (const char* e : requiredExtensions) {
+		if (find_if(available.begin(), available.end(),
+			[e](const VkExtensionProperties& l) -> bool {
+				return strcmp(l.extensionName, e) == 0;
+			}) == available.end()) {
+			stringstream ss;
+			ss << "Required extension \"" << e << "\" is not available.";
+			throw runtime_error(ss.str());
+		}
+    }
+    return requiredExtensions;
 }
 
 void createInstance() {
@@ -36,20 +81,81 @@ void createInstance() {
 	instanceInfo.pNext = NULL;
 	instanceInfo.flags = 0;
 	instanceInfo.pApplicationInfo = &appInfo;
-	instanceInfo.enabledExtensionCount = 0;
-	instanceInfo.ppEnabledExtensionNames = NULL;
+
+	auto extensions = getRequiredExtensions();
+	instanceInfo.enabledExtensionCount = (uint32_t)extensions.size();
+	instanceInfo.ppEnabledExtensionNames = extensions.data();
+
+#ifdef NDEBUG
 	instanceInfo.enabledLayerCount = 0;
 	instanceInfo.ppEnabledLayerNames = NULL;
+#else
+	const char* validationLayer = "VK_LAYER_LUNARG_standard_validation";
+	{
+		auto available = findAvailableLayers();
+		auto pred = [validationLayer](const VkLayerProperties& l) -> bool {
+			return strcmp(l.layerName, validationLayer) == 0;
+		};
+		auto result = find_if(available.begin(), available.end(), pred);
+		if (result == available.end()) {
+			throw runtime_error("Validation layer is not available.");
+		}
+	}
+	instanceInfo.enabledLayerCount = 1;
+	instanceInfo.ppEnabledLayerNames = &validationLayer;
+#endif
 
-	VkResult result = vkCreateInstance(&instanceInfo, nullptr, &instance);
+	VkResult result = vkCreateInstance(&instanceInfo, nullptr, &context.instance);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Unable to create Vulkan instance.");
 	}
 }
 
+void loadExtensions() {
+#ifndef NDEBUG
+	vkCreateDebugReportCallback =
+		(PFN_vkCreateDebugReportCallbackEXT)
+		vkGetInstanceProcAddr(context.instance, "vkCreateDebugReportCallbackEXT");
+	vkDestroyDebugReportCallback =
+		(PFN_vkDestroyDebugReportCallbackEXT)
+		vkGetInstanceProcAddr(context.instance, "vkDestroyDebugReportCallbackEXT");
+	vkDebugReportMessage =
+		(PFN_vkDebugReportMessageEXT)
+		vkGetInstanceProcAddr(context.instance, "vkDebugReportMessageEXT");
+#endif
+}
+
+VKAPI_ATTR VkBool32 VKAPI_CALL debugReportCallback(
+	VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType,
+	uint64_t object, size_t location, int32_t messageCode,
+	const char* pLayerPrefix, const char* pMessage, void* pUserData) {
+	cerr << pLayerPrefix << ": " << pMessage << endl;
+	return VK_FALSE;
+}
+
+void createDebugCallback() {
+	VkDebugReportCallbackCreateInfoEXT callbackInfo;
+	callbackInfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
+	callbackInfo.flags =
+		VK_DEBUG_REPORT_ERROR_BIT_EXT |
+		VK_DEBUG_REPORT_WARNING_BIT_EXT |
+		VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT;
+	callbackInfo.pfnCallback = debugReportCallback;
+	callbackInfo.pUserData = nullptr;
+
+	VkResult result = vkCreateDebugReportCallback(context.instance,
+		&callbackInfo, nullptr, &context.debugCallback);
+	if (result != VK_SUCCESS) {
+		throw runtime_error("Failed to create debug report callback.");
+	}
+}
+
 void quit() {
-	vkDestroyInstance(instance, nullptr);
-	glfwDestroyWindow(window);
+#ifndef NDEBUG
+	vkDestroyDebugReportCallback(context.instance, context.debugCallback, nullptr);
+#endif
+	vkDestroyInstance(context.instance, nullptr);
+	glfwDestroyWindow(context.window);
 	glfwTerminate();
 }
 
@@ -57,12 +163,16 @@ int main(int argc, char** argv) {
 	try {
 		createWindow();
 		createInstance();
+		loadExtensions();
+#ifndef NDEBUG
+		createDebugCallback();
+#endif
 	} catch (const exception& e) {
 		cerr << e.what();
 		return 1;
 	}
 
-	while (!glfwWindowShouldClose(window)) {
+	while (!glfwWindowShouldClose(context.window)) {
 		glfwWaitEvents();
 	}
 
