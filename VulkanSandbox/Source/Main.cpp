@@ -1,5 +1,3 @@
-#include <GLFW/glfw3.h>
-#include <vulkan/vulkan.h>
 #include <iostream>
 #include <stdexcept>
 #include "Context.h"
@@ -15,7 +13,6 @@ static Context context;
 #ifndef NDEBUG
 PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallback = nullptr;
 PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallback = nullptr;
-PFN_vkDebugReportMessageEXT vkDebugReportMessage = nullptr;
 #endif
 
 
@@ -119,9 +116,6 @@ void loadExtensions() {
 	vkDestroyDebugReportCallback =
 		(PFN_vkDestroyDebugReportCallbackEXT)
 		vkGetInstanceProcAddr(context.instance, "vkDestroyDebugReportCallbackEXT");
-	vkDebugReportMessage =
-		(PFN_vkDebugReportMessageEXT)
-		vkGetInstanceProcAddr(context.instance, "vkDebugReportMessageEXT");
 #endif
 }
 
@@ -150,7 +144,42 @@ void createDebugCallback() {
 	}
 }
 
+void createSurface() {
+	VkResult result = glfwCreateWindowSurface(context.instance, context.window,
+		nullptr, &context.surface);
+	if (result != VK_SUCCESS) {
+		throw runtime_error("Unable to create window surface.");
+	}
+}
+
+void pickPhysicalDevice() {
+	uint32_t n = 0;
+	vkEnumeratePhysicalDevices(context.instance, &n, nullptr);
+	vector<VkPhysicalDevice> devices(n);
+	vkEnumeratePhysicalDevices(context.instance, &n, devices.data());
+
+	for (VkPhysicalDevice d : devices) {
+		context.physicalDevice = d;
+		vkGetPhysicalDeviceProperties(d, &context.physicalDeviceProperties);
+		vkGetPhysicalDeviceQueueFamilyProperties(d, &n, nullptr);
+		vector<VkQueueFamilyProperties> queues(n);
+		vkGetPhysicalDeviceQueueFamilyProperties(d, &n, queues.data());
+
+		for (int i = 0; i < n; i++) {
+			VkBool32 supportPresent;
+			vkGetPhysicalDeviceSurfaceSupportKHR(d, i, context.surface,
+				&supportPresent);
+			if (supportPresent && (queues[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
+				return;
+			}
+		}
+	}
+
+	throw runtime_error("No suitable physical device found.");
+}
+
 void quit() {
+	vkDestroySurfaceKHR(context.instance, context.surface, nullptr);
 #ifndef NDEBUG
 	vkDestroyDebugReportCallback(context.instance, context.debugCallback, nullptr);
 #endif
@@ -167,6 +196,8 @@ int main(int argc, char** argv) {
 #ifndef NDEBUG
 		createDebugCallback();
 #endif
+		createSurface();
+		pickPhysicalDevice();
 	} catch (const exception& e) {
 		cerr << e.what();
 		return 1;
