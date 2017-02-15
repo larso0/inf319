@@ -119,6 +119,7 @@ void loadExtensions() {
 #endif
 }
 
+#ifndef NDEBUG
 VKAPI_ATTR VkBool32 VKAPI_CALL debugReportCallback(
 	VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType,
 	uint64_t object, size_t location, int32_t messageCode,
@@ -143,6 +144,7 @@ void createDebugCallback() {
 		throw runtime_error("Failed to create debug report callback.");
 	}
 }
+#endif
 
 void createSurface() {
 	VkResult result = glfwCreateWindowSurface(context.instance, context.window,
