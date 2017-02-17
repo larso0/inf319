@@ -264,7 +264,7 @@ void createSwapchain() {
 	vkGetPhysicalDeviceSurfacePresentModesKHR(context.physicalDevice,
 		context.surface, &n, presentModes.data());
 
-	VkPresentModeKHR presentationMode = VK_PRESENT_MODE_FIFO_KHR;   // always supported.
+	VkPresentModeKHR presentationMode = VK_PRESENT_MODE_FIFO_KHR;
 	for (uint32_t i = 0; i < n; i++) {
 		if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
 			presentationMode = VK_PRESENT_MODE_MAILBOX_KHR;
