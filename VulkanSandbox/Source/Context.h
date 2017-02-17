@@ -6,6 +6,7 @@
 #include <vulkan/vulkan.h>
 
 struct Context {
+	int width, height;
 	GLFWwindow* window;
 	VkInstance instance;
 #ifndef NDEBUG
@@ -16,6 +17,7 @@ struct Context {
 	 VkPhysicalDeviceProperties physicalDeviceProperties;
 	 VkDevice device;
 	 uint32_t presentQueueIdx;
+	 VkSwapchainKHR swapchain;
 };
 
 #endif

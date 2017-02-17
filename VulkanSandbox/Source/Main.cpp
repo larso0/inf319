@@ -26,7 +26,8 @@ void createWindow() {
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-	if (!(context.window = glfwCreateWindow(800, 600, "VulkanSandbox", nullptr, nullptr))) {
+	if (!(context.window = glfwCreateWindow(context.width, context.height,
+		"VulkanSandbox", nullptr, nullptr))) {
 		throw runtime_error("Error creating GLFW window.");
 	}
 }
@@ -92,7 +93,7 @@ void createInstance() {
 #else
 	{
 		auto available = findAvailableLayers();
-		auto pred = [validationLayer](const VkLayerProperties& l) -> bool {
+		auto pred = [](const VkLayerProperties& l) -> bool {
 			return strcmp(l.layerName, validationLayer) == 0;
 		};
 		auto result = find_if(available.begin(), available.end(), pred);
@@ -188,7 +189,7 @@ void createLogicalDevice() {
 	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 	queueCreateInfo.queueFamilyIndex = context.presentQueueIdx;
 	queueCreateInfo.queueCount = 1;
-	float queuePriorities[] = { 1.0f };   // ask for highest priority for our queue. (range [0,1])
+	float queuePriorities[] = { 1.0f };
 	queueCreateInfo.pQueuePriorities = queuePriorities;
 
 	VkDeviceCreateInfo deviceInfo = {};
@@ -213,7 +214,88 @@ void createLogicalDevice() {
 	}
 }
 
+void createSwapchain() {
+	uint32_t n = 0;
+	vkGetPhysicalDeviceSurfaceFormatsKHR(context.physicalDevice,
+		context.surface, &n, nullptr);
+	vector<VkSurfaceFormatKHR> surfaceFormats(n);
+	vkGetPhysicalDeviceSurfaceFormatsKHR(context.physicalDevice,
+		context.surface, &n, surfaceFormats.data());
+
+	VkFormat colorFormat;
+	if (n == 1 && surfaceFormats[0].format == VK_FORMAT_UNDEFINED) {
+		colorFormat = VK_FORMAT_B8G8R8_UNORM;
+	} else {
+		colorFormat = surfaceFormats[0].format;
+	}
+	VkColorSpaceKHR colorSpace = surfaceFormats[0].colorSpace;
+
+	VkSurfaceCapabilitiesKHR surfaceCapabilities = {};
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.physicalDevice,
+		context.surface, &surfaceCapabilities);
+
+	uint32_t desiredImageCount = 2;
+	if (desiredImageCount < surfaceCapabilities.minImageCount) {
+		desiredImageCount = surfaceCapabilities.minImageCount;
+	} else if (surfaceCapabilities.maxImageCount != 0 &&
+		desiredImageCount > surfaceCapabilities.maxImageCount) {
+		desiredImageCount = surfaceCapabilities.maxImageCount;
+	}
+
+	VkExtent2D surfaceResolution =  surfaceCapabilities.currentExtent;
+	if( surfaceResolution.width == -1 ) {
+	    surfaceResolution.width = context.width;
+	    surfaceResolution.height = context.height;
+	} else {
+	    context.width = surfaceResolution.width;
+	    context.height = surfaceResolution.height;
+	}
+
+	VkSurfaceTransformFlagBitsKHR preTransform =
+		surfaceCapabilities.currentTransform;
+	if (surfaceCapabilities.supportedTransforms &
+		VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) {
+		preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+	}
+
+	vkGetPhysicalDeviceSurfacePresentModesKHR(context.physicalDevice,
+		context.surface, &n, nullptr);
+	vector<VkPresentModeKHR> presentModes(n);
+	vkGetPhysicalDeviceSurfacePresentModesKHR(context.physicalDevice,
+		context.surface, &n, presentModes.data());
+
+	VkPresentModeKHR presentationMode = VK_PRESENT_MODE_FIFO_KHR;   // always supported.
+	for (uint32_t i = 0; i < n; i++) {
+		if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
+			presentationMode = VK_PRESENT_MODE_MAILBOX_KHR;
+			break;
+		}
+	}
+
+	VkSwapchainCreateInfoKHR swapchainCreateInfo = {};
+	swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	swapchainCreateInfo.surface = context.surface;
+	swapchainCreateInfo.minImageCount = desiredImageCount;
+	swapchainCreateInfo.imageFormat = colorFormat;
+	swapchainCreateInfo.imageColorSpace = colorSpace;
+	swapchainCreateInfo.imageExtent = surfaceResolution;
+	swapchainCreateInfo.imageArrayLayers = 1;
+	swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	swapchainCreateInfo.preTransform = preTransform;
+	swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	swapchainCreateInfo.presentMode = presentationMode;
+	swapchainCreateInfo.clipped = true;
+
+	VkResult result = vkCreateSwapchainKHR(context.device, &swapchainCreateInfo,
+		nullptr, &context.swapchain);
+	if (result != VK_SUCCESS) {
+		throw runtime_error("Unable to create swapchain.");
+	}
+}
+
 void quit() {
+	vkDestroySwapchainKHR(context.device, context.swapchain, nullptr);
 	vkDestroyDevice(context.device, nullptr);
 	vkDestroySurfaceKHR(context.instance, context.surface, nullptr);
 #ifndef NDEBUG
@@ -226,6 +308,8 @@ void quit() {
 
 int main(int argc, char** argv) {
 	try {
+		context.width = 800;
+		context.height = 600;
 		createWindow();
 		createInstance();
 		loadExtensions();
@@ -235,6 +319,7 @@ int main(int argc, char** argv) {
 		createSurface();
 		pickPhysicalDevice();
 		createLogicalDevice();
+		createSwapchain();
 	} catch (const exception& e) {
 		cerr << e.what() << endl;
 		return 1;
