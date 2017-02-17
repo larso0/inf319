@@ -15,6 +15,7 @@ struct Context {
 	 VkPhysicalDevice physicalDevice;
 	 VkPhysicalDeviceProperties physicalDeviceProperties;
 	 VkDevice device;
+	 uint32_t presentQueueIdx;
 };
 
 #endif

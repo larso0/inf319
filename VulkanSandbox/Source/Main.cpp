@@ -8,6 +8,9 @@
 
 using namespace std;
 
+static const char* validationLayer = "VK_LAYER_LUNARG_standard_validation";
+static const char* swapchainExtension = "VK_KHR_swapchain";
+
 static Context context;
 
 #ifndef NDEBUG
@@ -87,7 +90,6 @@ void createInstance() {
 	instanceInfo.enabledLayerCount = 0;
 	instanceInfo.ppEnabledLayerNames = NULL;
 #else
-	const char* validationLayer = "VK_LAYER_LUNARG_standard_validation";
 	{
 		auto available = findAvailableLayers();
 		auto pred = [validationLayer](const VkLayerProperties& l) -> bool {
@@ -172,6 +174,7 @@ void pickPhysicalDevice() {
 			vkGetPhysicalDeviceSurfaceSupportKHR(d, i, context.surface,
 				&supportPresent);
 			if (supportPresent && (queues[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
+				context.presentQueueIdx = i;
 				return;
 			}
 		}
@@ -180,7 +183,38 @@ void pickPhysicalDevice() {
 	throw runtime_error("No suitable physical device found.");
 }
 
+void createLogicalDevice() {
+	VkDeviceQueueCreateInfo queueCreateInfo = {};
+	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	queueCreateInfo.queueFamilyIndex = context.presentQueueIdx;
+	queueCreateInfo.queueCount = 1;
+	float queuePriorities[] = { 1.0f };   // ask for highest priority for our queue. (range [0,1])
+	queueCreateInfo.pQueuePriorities = queuePriorities;
+
+	VkDeviceCreateInfo deviceInfo = {};
+	deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	deviceInfo.queueCreateInfoCount = 1;
+	deviceInfo.pQueueCreateInfos = &queueCreateInfo;
+#ifndef NDEBUG
+	deviceInfo.enabledLayerCount = 1;
+	deviceInfo.ppEnabledLayerNames = &validationLayer;
+#endif
+	deviceInfo.enabledExtensionCount = 1;
+	deviceInfo.ppEnabledExtensionNames = &swapchainExtension;
+
+	VkPhysicalDeviceFeatures features = {};
+	features.shaderClipDistance = VK_TRUE;
+	deviceInfo.pEnabledFeatures = &features;
+
+	VkResult result = vkCreateDevice(context.physicalDevice, &deviceInfo,
+		nullptr, &context.device);
+	if (result != VK_SUCCESS) {
+		throw runtime_error("Unable to create logical device.");
+	}
+}
+
 void quit() {
+	vkDestroyDevice(context.device, nullptr);
 	vkDestroySurfaceKHR(context.instance, context.surface, nullptr);
 #ifndef NDEBUG
 	vkDestroyDebugReportCallback(context.instance, context.debugCallback, nullptr);
@@ -200,8 +234,9 @@ int main(int argc, char** argv) {
 #endif
 		createSurface();
 		pickPhysicalDevice();
+		createLogicalDevice();
 	} catch (const exception& e) {
-		cerr << e.what();
+		cerr << e.what() << endl;
 		return 1;
 	}
 
