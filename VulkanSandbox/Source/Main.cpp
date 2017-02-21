@@ -294,12 +294,27 @@ void createSwapchain() {
 	}
 }
 
+void createCommandPool() {
+	VkCommandPoolCreateInfo commandPoolInfo = {};
+	commandPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	commandPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	commandPoolInfo.queueFamilyIndex = context.presentQueueIdx;
+
+	VkResult result = vkCreateCommandPool(context.device, &commandPoolInfo,
+		nullptr, &context.commandPool);
+	if (result != VK_SUCCESS) {
+		throw runtime_error("Unable to create command pool");
+	}
+}
+
 void quit() {
+	vkDestroyCommandPool(context.device, context.commandPool, nullptr);
 	vkDestroySwapchainKHR(context.device, context.swapchain, nullptr);
 	vkDestroyDevice(context.device, nullptr);
 	vkDestroySurfaceKHR(context.instance, context.surface, nullptr);
 #ifndef NDEBUG
-	vkDestroyDebugReportCallback(context.instance, context.debugCallback, nullptr);
+	vkDestroyDebugReportCallback(context.instance, context.debugCallback,
+		nullptr);
 #endif
 	vkDestroyInstance(context.instance, nullptr);
 	glfwDestroyWindow(context.window);
@@ -320,6 +335,9 @@ int main(int argc, char** argv) {
 		pickPhysicalDevice();
 		createLogicalDevice();
 		createSwapchain();
+		vkGetDeviceQueue(context.device, context.presentQueueIdx, 0,
+			&context.presentQueue);
+		createCommandPool();
 	} catch (const exception& e) {
 		cerr << e.what() << endl;
 		return 1;

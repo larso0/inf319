@@ -18,6 +18,8 @@ struct Context {
 	 VkDevice device;
 	 uint32_t presentQueueIdx;
 	 VkSwapchainKHR swapchain;
+	 VkQueue presentQueue;
+	 VkCommandPool commandPool;
 };
 
 #endif
