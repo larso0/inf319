@@ -20,6 +20,8 @@ struct Context {
 	 VkSwapchainKHR swapchain;
 	 VkQueue presentQueue;
 	 VkCommandPool commandPool;
+	 VkCommandBuffer setupCmdBuffer;
+	 VkCommandBuffer drawCmdBuffer;
 };
 
 #endif

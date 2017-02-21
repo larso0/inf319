@@ -303,11 +303,36 @@ void createCommandPool() {
 	VkResult result = vkCreateCommandPool(context.device, &commandPoolInfo,
 		nullptr, &context.commandPool);
 	if (result != VK_SUCCESS) {
-		throw runtime_error("Unable to create command pool");
+		throw runtime_error("Unable to create command pool.");
+	}
+}
+
+void createCommandBuffers() {
+	VkCommandBufferAllocateInfo commandBufferInfo = {};
+	commandBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	commandBufferInfo.commandPool = context.commandPool;
+	commandBufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	commandBufferInfo.commandBufferCount = 1;
+
+	VkResult result =
+		vkAllocateCommandBuffers(context.device, &commandBufferInfo,
+			&context.setupCmdBuffer);
+	if (result != VK_SUCCESS) {
+		throw runtime_error("Unable to create setup command buffer.");
+	}
+
+	result = vkAllocateCommandBuffers(context.device, &commandBufferInfo,
+			&context.drawCmdBuffer);
+	if (result != VK_SUCCESS) {
+		throw runtime_error("Unable to create draw command buffer.");
 	}
 }
 
 void quit() {
+	vkFreeCommandBuffers(context.device, context.commandPool, 1,
+		&context.drawCmdBuffer);
+	vkFreeCommandBuffers(context.device, context.commandPool, 1,
+			&context.setupCmdBuffer);
 	vkDestroyCommandPool(context.device, context.commandPool, nullptr);
 	vkDestroySwapchainKHR(context.device, context.swapchain, nullptr);
 	vkDestroyDevice(context.device, nullptr);
@@ -338,6 +363,7 @@ int main(int argc, char** argv) {
 		vkGetDeviceQueue(context.device, context.presentQueueIdx, 0,
 			&context.presentQueue);
 		createCommandPool();
+		createCommandBuffers();
 	} catch (const exception& e) {
 		cerr << e.what() << endl;
 		return 1;
