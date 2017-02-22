@@ -4,6 +4,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.h>
+#include <vector>
 
 struct Context {
 	int width, height;
@@ -22,6 +23,7 @@ struct Context {
 	 VkCommandPool commandPool;
 	 VkCommandBuffer setupCmdBuffer;
 	 VkCommandBuffer drawCmdBuffer;
+	 std::vector<VkImage> swapchainImages;
 };
 
 #endif

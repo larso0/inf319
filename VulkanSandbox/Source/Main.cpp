@@ -292,6 +292,11 @@ void createSwapchain() {
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Unable to create swapchain.");
 	}
+
+	vkGetSwapchainImagesKHR(context.device, context.swapchain, &n, nullptr);
+	context.swapchainImages.resize(n);
+	vkGetSwapchainImagesKHR(context.device, context.swapchain, &n,
+		context.swapchainImages.data());
 }
 
 void createCommandPool() {
@@ -329,10 +334,7 @@ void createCommandBuffers() {
 }
 
 void quit() {
-	vkFreeCommandBuffers(context.device, context.commandPool, 1,
-		&context.drawCmdBuffer);
-	vkFreeCommandBuffers(context.device, context.commandPool, 1,
-			&context.setupCmdBuffer);
+	//Command buffers are freed when command pool is destroyed.
 	vkDestroyCommandPool(context.device, context.commandPool, nullptr);
 	vkDestroySwapchainKHR(context.device, context.swapchain, nullptr);
 	vkDestroyDevice(context.device, nullptr);
