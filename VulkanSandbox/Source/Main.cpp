@@ -222,11 +222,10 @@ void createSwapchain() {
 	vkGetPhysicalDeviceSurfaceFormatsKHR(context.physicalDevice,
 		context.surface, &n, surfaceFormats.data());
 
-	VkFormat colorFormat;
 	if (n == 1 && surfaceFormats[0].format == VK_FORMAT_UNDEFINED) {
-		colorFormat = VK_FORMAT_B8G8R8_UNORM;
+		context.colorFormat = VK_FORMAT_B8G8R8_UNORM;
 	} else {
-		colorFormat = surfaceFormats[0].format;
+		context.colorFormat = surfaceFormats[0].format;
 	}
 	VkColorSpaceKHR colorSpace = surfaceFormats[0].colorSpace;
 
@@ -276,7 +275,7 @@ void createSwapchain() {
 	swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	swapchainCreateInfo.surface = context.surface;
 	swapchainCreateInfo.minImageCount = desiredImageCount;
-	swapchainCreateInfo.imageFormat = colorFormat;
+	swapchainCreateInfo.imageFormat = context.colorFormat;
 	swapchainCreateInfo.imageColorSpace = colorSpace;
 	swapchainCreateInfo.imageExtent = surfaceResolution;
 	swapchainCreateInfo.imageArrayLayers = 1;
@@ -292,11 +291,6 @@ void createSwapchain() {
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Unable to create swapchain.");
 	}
-
-	vkGetSwapchainImagesKHR(context.device, context.swapchain, &n, nullptr);
-	context.swapchainImages.resize(n);
-	vkGetSwapchainImagesKHR(context.device, context.swapchain, &n,
-		context.swapchainImages.data());
 }
 
 void createCommandPool() {
@@ -333,7 +327,157 @@ void createCommandBuffers() {
 	}
 }
 
+void setupImagesAndCreateImageViews() {
+	uint32_t imageCount;
+	vkGetSwapchainImagesKHR(context.device, context.swapchain, &imageCount, nullptr);
+	context.swapchainImages.resize(imageCount);
+	vkGetSwapchainImagesKHR(context.device, context.swapchain, &imageCount,
+		context.swapchainImages.data());
+
+	// Move images from VK_IMAGE_LAYOUT_UNDEFINED to
+	// VK_IMAGE_LAYOUT_PRESENT_SRC_KHR.
+	// TODO I don't think this is necessary
+	VkCommandBufferBeginInfo beginInfo = {};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	VkFenceCreateInfo fenceCreateInfo = {};
+	fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	VkFence submitFence;
+	vkCreateFence(context.device, &fenceCreateInfo, NULL, &submitFence);
+
+	vector<bool> transitioned(imageCount, false);
+	uint32_t doneCount = 0;
+
+	while (doneCount != imageCount) {
+
+		VkSemaphore presentCompleteSemaphore;
+		VkSemaphoreCreateInfo semaphoreCreateInfo = {
+			VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, 0, 0 };
+		vkCreateSemaphore(context.device, &semaphoreCreateInfo, NULL,
+			&presentCompleteSemaphore);
+
+		uint32_t nextImageIdx;
+		vkAcquireNextImageKHR(context.device, context.swapchain, UINT64_MAX,
+			presentCompleteSemaphore, VK_NULL_HANDLE, &nextImageIdx);
+
+		if (!transitioned[nextImageIdx]) {
+
+			// start recording out image layout change barrier on our setup
+			// command buffer:
+			vkBeginCommandBuffer(context.setupCmdBuffer, &beginInfo);
+
+			VkImageMemoryBarrier layoutTransitionBarrier = {};
+			layoutTransitionBarrier.sType =
+				VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+			layoutTransitionBarrier.srcAccessMask = 0;
+			layoutTransitionBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+			layoutTransitionBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			layoutTransitionBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+			layoutTransitionBarrier.srcQueueFamilyIndex =
+				VK_QUEUE_FAMILY_IGNORED;
+			layoutTransitionBarrier.dstQueueFamilyIndex =
+				VK_QUEUE_FAMILY_IGNORED;
+			layoutTransitionBarrier.image =
+				context.swapchainImages[nextImageIdx];
+			VkImageSubresourceRange resourceRange = { VK_IMAGE_ASPECT_COLOR_BIT,
+				0, 1, 0, 1 };
+			layoutTransitionBarrier.subresourceRange = resourceRange;
+
+			vkCmdPipelineBarrier(context.setupCmdBuffer,
+				VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+				VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, NULL, 0, NULL, 1,
+				&layoutTransitionBarrier);
+
+			vkEndCommandBuffer(context.setupCmdBuffer);
+
+			VkPipelineStageFlags waitStageMash[] = {
+				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+			VkSubmitInfo submitInfo = { };
+			submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+			submitInfo.waitSemaphoreCount = 1;
+			submitInfo.pWaitSemaphores = &presentCompleteSemaphore;
+			submitInfo.pWaitDstStageMask = waitStageMash;
+			submitInfo.commandBufferCount = 1;
+			submitInfo.pCommandBuffers = &context.setupCmdBuffer;
+			submitInfo.signalSemaphoreCount = 0;
+			submitInfo.pSignalSemaphores = nullptr;
+			VkResult result = vkQueueSubmit(context.presentQueue, 1,
+				&submitInfo, submitFence);
+
+			vkWaitForFences(context.device, 1, &submitFence, VK_TRUE,
+				UINT64_MAX);
+			vkResetFences(context.device, 1, &submitFence);
+
+			vkResetCommandBuffer(context.setupCmdBuffer, 0);
+
+			transitioned[nextImageIdx] = true;
+			doneCount++;
+		}
+
+		vkDestroySemaphore(context.device, presentCompleteSemaphore, NULL);
+
+		VkPresentInfoKHR presentInfo = {};
+		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+		presentInfo.waitSemaphoreCount = 0;
+		presentInfo.pWaitSemaphores = nullptr;
+		presentInfo.swapchainCount = 1;
+		presentInfo.pSwapchains = &context.swapchain;
+		presentInfo.pImageIndices = &nextImageIdx;
+		vkQueuePresentKHR(context.presentQueue, &presentInfo);
+	}
+
+	vkDestroyFence(context.device, submitFence, nullptr);
+
+	// Create the image views
+	VkImageViewCreateInfo imageViewInfo = {};
+	imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	imageViewInfo.format = context.colorFormat;
+	imageViewInfo.components = {
+		VK_COMPONENT_SWIZZLE_R,
+		VK_COMPONENT_SWIZZLE_G,
+		VK_COMPONENT_SWIZZLE_B,
+		VK_COMPONENT_SWIZZLE_A
+	};
+	imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	imageViewInfo.subresourceRange.baseMipLevel = 0;
+	imageViewInfo.subresourceRange.levelCount = 1;
+	imageViewInfo.subresourceRange.baseArrayLayer = 0;
+	imageViewInfo.subresourceRange.layerCount = 1;
+
+	context.swapchainImageViews.resize(imageCount);
+	for (uint32_t i = 0; i < imageCount; i++) {
+		imageViewInfo.image = context.swapchainImages[i];
+		VkResult result = vkCreateImageView(context.device, &imageViewInfo,
+			nullptr, context.swapchainImageViews.data() + i);
+		if (result != VK_SUCCESS) {
+			throw runtime_error("Unable to create swapchain image view.");
+		}
+	}
+}
+
+void render() {
+	uint32_t nextImageIdx;
+	vkAcquireNextImageKHR(context.device, context.swapchain, UINT64_MAX,
+		VK_NULL_HANDLE, VK_NULL_HANDLE, &nextImageIdx);
+
+	VkPresentInfoKHR presentInfo = {};
+	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	presentInfo.pNext = NULL;
+	presentInfo.waitSemaphoreCount = 0;
+	presentInfo.pWaitSemaphores = NULL;
+	presentInfo.swapchainCount = 1;
+	presentInfo.pSwapchains = &context.swapchain;
+	presentInfo.pImageIndices = &nextImageIdx;
+	presentInfo.pResults = NULL;
+	vkQueuePresentKHR(context.presentQueue, &presentInfo);
+}
+
 void quit() {
+	for (VkImageView i : context.swapchainImageViews) {
+		vkDestroyImageView(context.device, i, nullptr);
+	}
 	//Command buffers are freed when command pool is destroyed.
 	vkDestroyCommandPool(context.device, context.commandPool, nullptr);
 	vkDestroySwapchainKHR(context.device, context.swapchain, nullptr);
@@ -366,13 +510,15 @@ int main(int argc, char** argv) {
 			&context.presentQueue);
 		createCommandPool();
 		createCommandBuffers();
+		setupImagesAndCreateImageViews();
 	} catch (const exception& e) {
 		cerr << e.what() << endl;
 		return 1;
 	}
 
 	while (!glfwWindowShouldClose(context.window)) {
-		glfwWaitEvents();
+		glfwPollEvents();
+		render();
 	}
 
 	quit();

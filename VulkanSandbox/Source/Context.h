@@ -24,6 +24,8 @@ struct Context {
 	 VkCommandBuffer setupCmdBuffer;
 	 VkCommandBuffer drawCmdBuffer;
 	 std::vector<VkImage> swapchainImages;
+	 VkFormat colorFormat;
+	 std::vector<VkImageView> swapchainImageViews;
 };
 
 #endif
