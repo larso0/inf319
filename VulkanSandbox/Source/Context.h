@@ -7,7 +7,7 @@
 #include <vector>
 
 struct Context {
-	int width, height;
+	uint32_t width, height;
 	GLFWwindow* window;
 	VkInstance instance;
 #ifndef NDEBUG
@@ -26,6 +26,10 @@ struct Context {
 	 std::vector<VkImage> swapchainImages;
 	 VkFormat colorFormat;
 	 std::vector<VkImageView> swapchainImageViews;
+	 VkPhysicalDeviceMemoryProperties memoryProperties;
+	 VkImage depthImage;
+	 VkDeviceMemory depthImageMemory;
+	 VkImageView depthImageView;
 };
 
 #endif
