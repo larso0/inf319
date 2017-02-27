@@ -30,6 +30,8 @@ struct Context {
 	 VkImage depthImage;
 	 VkDeviceMemory depthImageMemory;
 	 VkImageView depthImageView;
+	 VkRenderPass renderPass;
+	 std::vector<VkFramebuffer> framebuffers;
 };
 
 #endif

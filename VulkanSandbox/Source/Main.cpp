@@ -70,7 +70,7 @@ vector<const char*> getRequiredExtensions() {
 void createInstance() {
 	VkApplicationInfo appInfo = {};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	appInfo.pNext = NULL;
+	appInfo.pNext = nullptr;
 	appInfo.pApplicationName = "VulkanSandbox";
 	appInfo.applicationVersion = 1;
 	appInfo.pEngineName = "VulkanSandbox";
@@ -79,7 +79,7 @@ void createInstance() {
 
 	VkInstanceCreateInfo instanceInfo = {};
 	instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	instanceInfo.pNext = NULL;
+	instanceInfo.pNext = nullptr;
 	instanceInfo.flags = 0;
 	instanceInfo.pApplicationInfo = &appInfo;
 
@@ -89,7 +89,7 @@ void createInstance() {
 
 #ifdef NDEBUG
 	instanceInfo.enabledLayerCount = 0;
-	instanceInfo.ppEnabledLayerNames = NULL;
+	instanceInfo.ppEnabledLayerNames = nullptr;
 #else
 	{
 		auto available = findAvailableLayers();
@@ -344,7 +344,7 @@ void setupImagesAndCreateImageViews() {
 	VkFenceCreateInfo fenceCreateInfo = {};
 	fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	VkFence submitFence;
-	vkCreateFence(context.device, &fenceCreateInfo, NULL, &submitFence);
+	vkCreateFence(context.device, &fenceCreateInfo, nullptr, &submitFence);
 
 	vector<bool> transitioned(imageCount, false);
 	uint32_t doneCount = 0;
@@ -354,7 +354,7 @@ void setupImagesAndCreateImageViews() {
 		VkSemaphore presentCompleteSemaphore;
 		VkSemaphoreCreateInfo semaphoreCreateInfo = {
 			VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, 0, 0 };
-		vkCreateSemaphore(context.device, &semaphoreCreateInfo, NULL,
+		vkCreateSemaphore(context.device, &semaphoreCreateInfo, nullptr,
 			&presentCompleteSemaphore);
 
 		uint32_t nextImageIdx;
@@ -386,7 +386,7 @@ void setupImagesAndCreateImageViews() {
 
 			vkCmdPipelineBarrier(context.setupCmdBuffer,
 				VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-				VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, NULL, 0, NULL, 1,
+				VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1,
 				&layoutTransitionBarrier);
 
 			vkEndCommandBuffer(context.setupCmdBuffer);
@@ -415,7 +415,7 @@ void setupImagesAndCreateImageViews() {
 			doneCount++;
 		}
 
-		vkDestroySemaphore(context.device, presentCompleteSemaphore, NULL);
+		vkDestroySemaphore(context.device, presentCompleteSemaphore, nullptr);
 
 		VkPresentInfoKHR presentInfo = {};
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -470,7 +470,7 @@ void createDepthBuffer() {
 	imageCreateInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 	imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	imageCreateInfo.queueFamilyIndexCount = 0;
-	imageCreateInfo.pQueueFamilyIndices = NULL;
+	imageCreateInfo.pQueueFamilyIndices = nullptr;
 	imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
 	VkResult result = vkCreateImage(context.device, &imageCreateInfo, nullptr,
@@ -502,7 +502,7 @@ void createDepthBuffer() {
 		memoryTypeBits = memoryTypeBits >> 1;
 	}
 
-	result = vkAllocateMemory(context.device, &imageAllocateInfo, NULL,
+	result = vkAllocateMemory(context.device, &imageAllocateInfo, nullptr,
 		&context.depthImageMemory);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to allocate depth buffer.");
@@ -540,26 +540,26 @@ void createDepthBuffer() {
 
 	vkCmdPipelineBarrier(context.setupCmdBuffer,
 		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
-		0, NULL, 0, NULL, 1, &layoutTransitionBarrier);
+		0, nullptr, 0, nullptr, 1, &layoutTransitionBarrier);
 
 	vkEndCommandBuffer(context.setupCmdBuffer);
 
 	VkFenceCreateInfo fenceCreateInfo = {};
 	fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	VkFence submitFence;
-	vkCreateFence(context.device, &fenceCreateInfo, NULL, &submitFence);
+	vkCreateFence(context.device, &fenceCreateInfo, nullptr, &submitFence);
 
 	VkPipelineStageFlags waitStageMask[] = {
 		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	VkSubmitInfo submitInfo = { };
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.waitSemaphoreCount = 0;
-	submitInfo.pWaitSemaphores = NULL;
+	submitInfo.pWaitSemaphores = nullptr;
 	submitInfo.pWaitDstStageMask = waitStageMask;
 	submitInfo.commandBufferCount = 1;
 	submitInfo.pCommandBuffers = &context.setupCmdBuffer;
 	submitInfo.signalSemaphoreCount = 0;
-	submitInfo.pSignalSemaphores = NULL;
+	submitInfo.pSignalSemaphores = nullptr;
 	result = vkQueueSubmit(context.presentQueue, 1, &submitInfo, submitFence);
 
 	vkWaitForFences(context.device, 1, &submitFence, VK_TRUE, UINT64_MAX);
@@ -584,10 +584,86 @@ void createDepthBuffer() {
 	imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
 	imageViewCreateInfo.subresourceRange.layerCount = 1;
 
-	result = vkCreateImageView(context.device, &imageViewCreateInfo, NULL,
+	result = vkCreateImageView(context.device, &imageViewCreateInfo, nullptr,
 		&context.depthImageView);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to create depth image view.");
+	}
+}
+
+void createRenderPass() {
+	VkAttachmentDescription passAttachments[2] = {};
+	passAttachments[0].format = context.colorFormat;
+	passAttachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
+	passAttachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	passAttachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	passAttachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	passAttachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	passAttachments[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	passAttachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	passAttachments[1].format = VK_FORMAT_D16_UNORM;
+	passAttachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
+	passAttachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	passAttachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	passAttachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	passAttachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	passAttachments[1].initialLayout =
+		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	passAttachments[1].finalLayout =
+		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentReference colorAttachmentReference = {};
+	colorAttachmentReference.attachment = 0;
+	colorAttachmentReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentReference depthAttachmentReference = {};
+	depthAttachmentReference.attachment = 1;
+	depthAttachmentReference.layout =
+		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkSubpassDescription subpass = {};
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass.colorAttachmentCount = 1;
+	subpass.pColorAttachments = &colorAttachmentReference;
+	subpass.pDepthStencilAttachment = &depthAttachmentReference;
+
+	VkRenderPassCreateInfo renderPassCreateInfo = {};
+	renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	renderPassCreateInfo.attachmentCount = 2;
+	renderPassCreateInfo.pAttachments = passAttachments;
+	renderPassCreateInfo.subpassCount = 1;
+	renderPassCreateInfo.pSubpasses = &subpass;
+
+	VkResult result = vkCreateRenderPass(context.device, &renderPassCreateInfo,
+		nullptr, &context.renderPass);
+	if (result != VK_SUCCESS) {
+		throw runtime_error("Failed to create render pass.");
+	}
+}
+
+void createFramebuffers() {
+	VkImageView framebufferAttachments[2];
+	framebufferAttachments[1] = context.depthImageView;
+
+	VkFramebufferCreateInfo framebufferCreateInfo = {};
+	framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	framebufferCreateInfo.renderPass = context.renderPass;
+	framebufferCreateInfo.attachmentCount = 2;
+	framebufferCreateInfo.pAttachments = framebufferAttachments;
+	framebufferCreateInfo.width = context.width;
+	framebufferCreateInfo.height = context.height;
+	framebufferCreateInfo.layers = 1;
+
+	uint32_t imageCount = context.swapchainImages.size();
+	context.framebuffers.resize(imageCount);
+	for (uint32_t i = 0; i < imageCount; i++) {
+		framebufferAttachments[0] = context.swapchainImageViews[i];
+		VkResult result = vkCreateFramebuffer(context.device,
+			&framebufferCreateInfo, nullptr, context.framebuffers.data() + i);
+		if (result != VK_SUCCESS) {
+			throw runtime_error("Failed to create framebuffer.");
+		}
 	}
 }
 
@@ -598,17 +674,21 @@ void render() {
 
 	VkPresentInfoKHR presentInfo = {};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	presentInfo.pNext = NULL;
+	presentInfo.pNext = nullptr;
 	presentInfo.waitSemaphoreCount = 0;
-	presentInfo.pWaitSemaphores = NULL;
+	presentInfo.pWaitSemaphores = nullptr;
 	presentInfo.swapchainCount = 1;
 	presentInfo.pSwapchains = &context.swapchain;
 	presentInfo.pImageIndices = &nextImageIdx;
-	presentInfo.pResults = NULL;
+	presentInfo.pResults = nullptr;
 	vkQueuePresentKHR(context.presentQueue, &presentInfo);
 }
 
 void quit() {
+	for (VkFramebuffer b : context.framebuffers) {
+		vkDestroyFramebuffer(context.device, b, nullptr);
+	}
+	vkDestroyRenderPass(context.device, context.renderPass, nullptr);
 	vkFreeMemory(context.device, context.depthImageMemory, nullptr);
 	vkDestroyImageView(context.device, context.depthImageView, nullptr);
 	vkDestroyImage(context.device, context.depthImage, nullptr);
@@ -655,6 +735,8 @@ int main(int argc, char** argv) {
 			&context.memoryProperties);
 
 		createDepthBuffer();
+		createRenderPass();
+		createFramebuffers();
 	} catch (const exception& e) {
 		cerr << e.what() << endl;
 		return 1;
