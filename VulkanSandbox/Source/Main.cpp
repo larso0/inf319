@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstring>
 #include <sstream>
+#include <fstream>
 #include <Render/MeshGeneration.h>
 
 using namespace std;
@@ -731,6 +732,38 @@ void createVertexBuffer() {
 	}
 }
 
+vector<char> readFile(const string& filename) {
+    ifstream file(filename, ios::ate | ios::binary);
+
+    if (!file.is_open()) {
+        throw runtime_error("failed to open file!");
+    }
+
+    size_t fileSize = (size_t) file.tellg();
+    vector<char> buffer(fileSize);
+
+    file.seekg(0);
+    file.read(buffer.data(), fileSize);
+
+    file.close();
+
+    return buffer;
+}
+
+void createShaderModule(const string& filename, VkShaderModule* dst) {
+	vector<char> code = readFile(filename);
+
+	VkShaderModuleCreateInfo info = {};
+	info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	info.codeSize = code.size();
+	info.pCode = (uint32_t *)code.data();
+
+	VkResult result = vkCreateShaderModule(context.device, &info, nullptr, dst);
+	if (result != VK_SUCCESS) {
+		throw runtime_error("Failed to create shader module.");
+	}
+}
+
 void render() {
 	uint32_t nextImageIdx;
 	vkAcquireNextImageKHR(context.device, context.swapchain, UINT64_MAX,
@@ -749,6 +782,9 @@ void render() {
 }
 
 void quit() {
+	vkDestroyShaderModule(context.device, context.fragmentShaderModule,
+		nullptr);
+	vkDestroyShaderModule(context.device, context.vertexShaderModule, nullptr);
 	vkFreeMemory(context.device, context.vertexBufferMemory, nullptr);
 	vkDestroyBuffer(context.device, context.vertexBuffer, nullptr);
 	for (VkFramebuffer b : context.framebuffers) {
@@ -804,6 +840,10 @@ int main(int argc, char** argv) {
 		createRenderPass();
 		createFramebuffers();
 		createVertexBuffer();
+		createShaderModule("Shaders/Simple.vert.spv",
+			&context.vertexShaderModule);
+		createShaderModule("Shaders/Simple.frag.spv",
+			&context.fragmentShaderModule);
 	} catch (const exception& e) {
 		cerr << e.what() << endl;
 		return 1;

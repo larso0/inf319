@@ -34,6 +34,8 @@ struct Context {
 	 std::vector<VkFramebuffer> framebuffers;
 	 VkBuffer vertexBuffer;
 	 VkDeviceMemory vertexBufferMemory;
+	 VkShaderModule vertexShaderModule;
+	 VkShaderModule fragmentShaderModule;
 };
 
 #endif
