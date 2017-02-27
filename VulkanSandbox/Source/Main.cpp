@@ -5,8 +5,10 @@
 #include <algorithm>
 #include <cstring>
 #include <sstream>
+#include <Render/MeshGeneration.h>
 
 using namespace std;
+using namespace Render;
 
 static const char* validationLayer = "VK_LAYER_LUNARG_standard_validation";
 static const char* swapchainExtension = "VK_KHR_swapchain";
@@ -667,6 +669,68 @@ void createFramebuffers() {
 	}
 }
 
+void createVertexBuffer() {
+	Mesh cube = generateCube();
+
+	VkBufferCreateInfo vertexBufferInfo = {};
+	vertexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	vertexBufferInfo.size = cube.getVertexDataSize();
+	vertexBufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	vertexBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	VkResult result = vkCreateBuffer(context.device, &vertexBufferInfo, nullptr,
+		&context.vertexBuffer);
+	if (result != VK_SUCCESS) {
+		throw runtime_error("Failed to create vertex buffer.");
+	}
+
+	VkMemoryRequirements vertexBufferMemoryRequirements = {};
+	vkGetBufferMemoryRequirements(context.device, context.vertexBuffer,
+		&vertexBufferMemoryRequirements);
+
+	VkMemoryAllocateInfo bufferAllocateInfo = {};
+	bufferAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	bufferAllocateInfo.allocationSize = vertexBufferMemoryRequirements.size;
+
+	uint32_t vertexMemoryTypeBits = vertexBufferMemoryRequirements
+		.memoryTypeBits;
+	VkMemoryPropertyFlags vertexDesiredMemoryFlags =
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+	for (uint32_t i = 0; i < 32; ++i) {
+		VkMemoryType memoryType = context.memoryProperties.memoryTypes[i];
+		if (vertexMemoryTypeBits & 1) {
+			if ((memoryType.propertyFlags & vertexDesiredMemoryFlags)
+				== vertexDesiredMemoryFlags) {
+				bufferAllocateInfo.memoryTypeIndex = i;
+				break;
+			}
+		}
+		vertexMemoryTypeBits = vertexMemoryTypeBits >> 1;
+	}
+
+	result = vkAllocateMemory(context.device, &bufferAllocateInfo, nullptr,
+		&context.vertexBufferMemory);
+	if (result != VK_SUCCESS) {
+		throw runtime_error("Failed to allocate vertex buffer memory.");
+	}
+
+	void* mapped;
+	result = vkMapMemory(context.device, context.vertexBufferMemory, 0,
+		VK_WHOLE_SIZE, 0, &mapped);
+	if (result != VK_SUCCESS) {
+		throw runtime_error("Failed to map vertex buffer memory.");
+	}
+
+	memcpy(mapped, cube.getVertexData(), cube.getVertexDataSize());
+	vkUnmapMemory(context.device, context.vertexBufferMemory);
+
+	result = vkBindBufferMemory(context.device, context.vertexBuffer,
+		context.vertexBufferMemory, 0);
+	if (result != VK_SUCCESS) {
+		throw runtime_error("Failed to bind vertex buffer memory.");
+	}
+}
+
 void render() {
 	uint32_t nextImageIdx;
 	vkAcquireNextImageKHR(context.device, context.swapchain, UINT64_MAX,
@@ -685,6 +749,8 @@ void render() {
 }
 
 void quit() {
+	vkFreeMemory(context.device, context.vertexBufferMemory, nullptr);
+	vkDestroyBuffer(context.device, context.vertexBuffer, nullptr);
 	for (VkFramebuffer b : context.framebuffers) {
 		vkDestroyFramebuffer(context.device, b, nullptr);
 	}
@@ -737,6 +803,7 @@ int main(int argc, char** argv) {
 		createDepthBuffer();
 		createRenderPass();
 		createFramebuffers();
+		createVertexBuffer();
 	} catch (const exception& e) {
 		cerr << e.what() << endl;
 		return 1;
