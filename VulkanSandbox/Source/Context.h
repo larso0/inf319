@@ -36,6 +36,8 @@ struct Context {
 	 VkDeviceMemory vertexBufferMemory;
 	 VkShaderModule vertexShaderModule;
 	 VkShaderModule fragmentShaderModule;
+	 VkPipelineLayout pipelineLayout;
+	 VkPipeline pipeline;
 };
 
 #endif
