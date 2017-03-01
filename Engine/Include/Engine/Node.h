@@ -1,10 +1,10 @@
-#ifndef SCENE_NODE_H
-#define SCENE_NODE_H
+#ifndef ENGINE_NODE_H
+#define ENGINE_NODE_H
 
-#include <Util/Math.h>
+#include <Engine/Math.h>
 #include <vector>
 
-namespace Scene {
+namespace Engine {
 	class Node {
 	public:
 		Node(Node* p = nullptr) : parent(nullptr) {

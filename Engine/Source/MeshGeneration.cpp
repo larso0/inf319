@@ -1,9 +1,9 @@
-#include <Render/MeshGeneration.h>
+#include <Engine/MeshGeneration.h>
 
 using glm::vec3;
 using glm::vec2;
 
-namespace Render {
+namespace Engine {
 	Mesh generateCube() {
 		Mesh m;
 		m.addVertex({ vec3(-0.5f, -0.5f, 0.5f), vec3(0.f, 0.f, 1.f), vec2(0.f, 0.f) });

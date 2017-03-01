@@ -1,9 +1,9 @@
-#ifndef RENDER_VERTEX_H
-#define RENDER_VERTEX_H
+#ifndef ENGINE_VERTEX_H
+#define ENGINE_VERTEX_H
 
-#include <Util/Math.h>
+#include <Engine/Math.h>
 
-namespace Render {
+namespace Engine {
 	class Vertex {
 	public:
 		glm::vec3 position;

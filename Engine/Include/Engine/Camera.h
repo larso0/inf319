@@ -1,18 +1,18 @@
-#ifndef RENDER_CAMERA_H
-#define RENDER_CAMERA_H
+#ifndef ENGINE_CAMERA_H
+#define ENGINE_CAMERA_H
 
-#include <Scene/Node.h>
+#include <Engine/Node.h>
 
-namespace Render {
+namespace Engine {
 	class Camera {
 	public:
-		Camera(Scene::Node* node = nullptr) : node(node) {}
+		Camera(Engine::Node* node = nullptr) : node(node) {}
 
-		Scene::Node* getNode() {
+		Engine::Node* getNode() {
 			return node;
 		}
 
-		const Scene::Node* getNode() const {
+		const Engine::Node* getNode() const {
 			return node;
 		}
 
@@ -24,7 +24,7 @@ namespace Render {
 			return projectionMatrix;
 		}
 
-		void setNode(Scene::Node* n) {
+		void setNode(Engine::Node* n) {
 			node = n;
 		}
 
@@ -40,9 +40,9 @@ namespace Render {
 
 		void update() {
 			if (node) {
-				glm::vec3 dir = Math::quatTransform(node->getOrientation(),
+				glm::vec3 dir = Engine::quatTransform(node->getOrientation(),
 					glm::vec3(0.f, 0.f, -1.f));
-				glm::vec3 up = Math::quatTransform(node->getOrientation(),
+				glm::vec3 up = Engine::quatTransform(node->getOrientation(),
 					glm::vec3(0.f, 1.f, 0.f));
 				viewMatrix = glm::lookAt(node->getPosition(),
 					node->getPosition() + dir, up);
@@ -52,7 +52,7 @@ namespace Render {
 		}
 
 	private:
-		Scene::Node* node;
+		Engine::Node* node;
 		glm::mat4 viewMatrix;
 		glm::mat4 projectionMatrix;
 	};

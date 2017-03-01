@@ -1,10 +1,10 @@
-#include <Scene/Node.h>
+#include <Engine/Node.h>
 #include <algorithm>
 
 using std::remove_if;
-using Math::quatTransform;
+using Engine::quatTransform;
 
-namespace Scene {
+namespace Engine {
 	void Node::update() {
 		glm::mat4 localMatrix =
 			glm::translate(glm::mat4(), translation) * glm::mat4_cast(rotation);

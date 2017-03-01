@@ -1,11 +1,11 @@
-#ifndef RENDER_RENDERER_H
-#define RENDER_RENDERER_H
+#ifndef ENGINE_RENDERER_H
+#define ENGINE_RENDERER_H
 
-#include <Render/Entity.h>
-#include <Render/Camera.h>
+#include <Engine/Camera.h>
+#include <Engine/Entity.h>
 #include <vector>
 
-namespace Render {
+namespace Engine {
 	class Renderer {
 	public:
 		virtual ~Renderer() {}

@@ -1,12 +1,12 @@
-#ifndef RENDER_INDEXEDMESH_H
-#define RENDER_INDEXEDMESH_H
+#ifndef ENGINE_INDEXEDMESH_H
+#define ENGINE_INDEXEDMESH_H
 
-#include <Render/Mesh.h>
+#include <Engine/Mesh.h>
 
-namespace Render {
+namespace Engine {
 	class IndexedMesh : public Mesh {
 	public:
-		IndexedMesh(PrimitiveType pt = PrimitiveType::Triangles) :
+		IndexedMesh(Topology pt = Topology::Triangles) :
 			Mesh(pt) {}
 
 		void addIndex(uint32_t index) {

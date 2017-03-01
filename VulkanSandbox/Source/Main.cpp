@@ -1,3 +1,4 @@
+#include <Engine/MeshGeneration.h>
 #include <iostream>
 #include <stdexcept>
 #include "Context.h"
@@ -6,10 +7,9 @@
 #include <cstring>
 #include <sstream>
 #include <fstream>
-#include <Render/MeshGeneration.h>
 
 using namespace std;
-using namespace Render;
+using namespace Engine;
 
 static const char* validationLayer = "VK_LAYER_LUNARG_standard_validation";
 static const char* swapchainExtension = "VK_KHR_swapchain";

@@ -1,13 +1,13 @@
-#ifndef RENDER_MESH_H
-#define RENDER_MESH_H
+#ifndef ENGINE_MESH_H
+#define ENGINE_MESH_H
 
-#include "Vertex.h"
+#include <Engine/Vertex.h>
 #include <vector>
 
-namespace Render {
+namespace Engine {
 	class Mesh {
 	public:
-		enum class PrimitiveType {
+		enum class Topology {
 			Points,
 			Lines,
 			LineLoop,
@@ -17,8 +17,8 @@ namespace Render {
 			TriangleFan
 		};
 
-		Mesh(PrimitiveType pt = PrimitiveType::Triangles) :
-			primitiveType(pt) {}
+		Mesh(Topology pt = Topology::Triangles) :
+			topology(pt) {}
 		virtual ~Mesh() {}
 
 		uint32_t addVertex(const Vertex& vertex) {
@@ -27,12 +27,12 @@ namespace Render {
 			return i;
 		}
 
-		void setPrimitiveType(PrimitiveType pt) {
-			primitiveType = pt;
+		void setTopology(Topology pt) {
+			topology = pt;
 		}
 
-		PrimitiveType getPrimitiveType() const {
-			return primitiveType;
+		Topology getTopology() const {
+			return topology;
 		}
 
 		std::vector<Vertex>& getVertices() {
@@ -56,7 +56,7 @@ namespace Render {
 		}
 
 	private:
-		PrimitiveType primitiveType;
+		Topology topology;
 		std::vector<Vertex> vertices;
 	};
 }

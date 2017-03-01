@@ -1,19 +1,18 @@
+#include <Engine/Camera.h>
+#include <Engine/Entity.h>
+#include <Engine/MeshGeneration.h>
+#include <Engine/Renderer.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <Render/Entity.h>
 #include <iostream>
 #include <sstream>
-#include <Scene/Node.h>
-#include <Render/Camera.h>
-#include <Render/MeshGeneration.h>
-#include <Render/Renderer.h>
+#include <Engine/Node.h>
 #include <vector>
 #include <unordered_map>
 #include <memory>
 
 using namespace std;
-using namespace Scene;
-using namespace Render;
+using namespace Engine;
 
 class Configuration {
 public:
@@ -140,15 +139,15 @@ GLuint createDrawProgram() {
 	return handle;
 }
 
-GLenum primitiveType(Mesh::PrimitiveType pt) {
+GLenum primitiveType(Mesh::Topology pt) {
 	switch (pt) {
-	case Mesh::PrimitiveType::Points: return GL_POINTS;
-	case Mesh::PrimitiveType::Lines: return GL_LINES;
-	case Mesh::PrimitiveType::LineLoop: return GL_LINE_LOOP;
-	case Mesh::PrimitiveType::LineStrip: return GL_LINE_STRIP;
-	case Mesh::PrimitiveType::Triangles: return GL_TRIANGLES;
-	case Mesh::PrimitiveType::TriangleStrip: return GL_TRIANGLE_STRIP;
-	case Mesh::PrimitiveType:: TriangleFan: return GL_TRIANGLE_FAN;
+	case Mesh::Topology::Points: return GL_POINTS;
+	case Mesh::Topology::Lines: return GL_LINES;
+	case Mesh::Topology::LineLoop: return GL_LINE_LOOP;
+	case Mesh::Topology::LineStrip: return GL_LINE_STRIP;
+	case Mesh::Topology::Triangles: return GL_TRIANGLES;
+	case Mesh::Topology::TriangleStrip: return GL_TRIANGLE_STRIP;
+	case Mesh::Topology:: TriangleFan: return GL_TRIANGLE_FAN;
 	}
 	throw invalid_argument("Unknown primitive type");
 }
@@ -244,7 +243,7 @@ public:
 			auto result = meshCache.find(mesh);
 			if (result == meshCache.end()) {
 				shared_ptr<MeshGLObjects> glObjects = make_shared<MeshGLObjects>();
-				glObjects->primitiveType = primitiveType(mesh->getPrimitiveType());
+				glObjects->primitiveType = primitiveType(mesh->getTopology());
 				GLuint vertexBuffer = createVertexBuffer(*mesh);
 				glObjects->buffers.push_back(vertexBuffer);
 				const IndexedMesh* indexedMesh = dynamic_cast<const IndexedMesh*>(mesh);
@@ -385,9 +384,9 @@ int main(int argc, char** argv) {
 		glfwPollEvents();
 
 		if (config.mouseHidden) {
-			glm::vec3 cameraDirection = Math::quatTransform(
+			glm::vec3 cameraDirection = quatTransform(
 				cameraNode.getOrientation(), glm::vec3(0.f, 0.f, -1.f));
-			glm::vec3 cameraRight = Math::quatTransform(cameraNode.getOrientation(),
+			glm::vec3 cameraRight = quatTransform(cameraNode.getOrientation(),
 				glm::vec3(1.f, 0.f, 0.f));
 
 			double seconds = glfwGetTime();

@@ -1,14 +1,14 @@
-#ifndef RENDER_ENTITY_H
-#define RENDER_ENTITY_H
+#ifndef ENGINE_ENTITY_H
+#define ENGINE_ENTITY_H
 
-#include <Render/Mesh.h>
-#include <Scene/Node.h>
+#include <Engine/Mesh.h>
+#include <Engine/Node.h>
 
-namespace Render {
+namespace Engine {
 	class Entity {
 	public:
 		Entity() : mesh(nullptr), node(nullptr) {}
-		Entity(Mesh* m, Scene::Node* n) : mesh(m), node(n) {}
+		Entity(Mesh* m, Engine::Node* n) : mesh(m), node(n) {}
 		~Entity() {}
 
 		Mesh* getMesh() {
@@ -19,11 +19,11 @@ namespace Render {
 			return mesh;
 		}
 
-		Scene::Node* getNode() {
+		Engine::Node* getNode() {
 			return node;
 		}
 
-		const Scene::Node* getNode() const {
+		const Engine::Node* getNode() const {
 			return node;
 		}
 
@@ -35,7 +35,7 @@ namespace Render {
 			mesh = m;
 		}
 
-		void setNode(Scene::Node* n) {
+		void setNode(Engine::Node* n) {
 			node = n;
 		}
 
@@ -49,7 +49,7 @@ namespace Render {
 
 	private:
 		Mesh* mesh;
-		Scene::Node* node;
+		Engine::Node* node;
 		glm::mat4 scaleMatrix;
 	};
 }

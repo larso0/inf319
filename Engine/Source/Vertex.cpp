@@ -1,6 +1,6 @@
-#include <Render/Vertex.h>
+#include <Engine/Vertex.h>
 
-namespace Render {
+namespace Engine {
 	const size_t Vertex::Stride = sizeof(Vertex);
 	const size_t Vertex::PositionOffset = 0;
 	const size_t Vertex::NormalOffset = sizeof(glm::vec3);
