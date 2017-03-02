@@ -8,11 +8,7 @@
 
 struct ContextOld {
 	uint32_t width, height;
-	GLFWwindow* window;
 	VkInstance instance;
-#ifndef NDEBUG
-	VkDebugReportCallbackEXT debugCallback;
-#endif
 	VkSurfaceKHR surface;
 	VkPhysicalDevice physicalDevice;
 	VkPhysicalDeviceProperties physicalDeviceProperties;
