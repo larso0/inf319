@@ -15,98 +15,6 @@ using namespace Engine;
 
 static ContextOld context;
 
-void createSwapchain() {
-	uint32_t n = 0;
-	vkGetPhysicalDeviceSurfaceFormatsKHR(context.physicalDevice,
-		context.surface, &n, nullptr);
-	vector<VkSurfaceFormatKHR> surfaceFormats(n);
-	vkGetPhysicalDeviceSurfaceFormatsKHR(context.physicalDevice,
-		context.surface, &n, surfaceFormats.data());
-
-	if (n == 1 && surfaceFormats[0].format == VK_FORMAT_UNDEFINED) {
-		context.colorFormat = VK_FORMAT_B8G8R8_UNORM;
-	} else {
-		context.colorFormat = surfaceFormats[0].format;
-	}
-	VkColorSpaceKHR colorSpace = surfaceFormats[0].colorSpace;
-
-	VkSurfaceCapabilitiesKHR surfaceCapabilities = {};
-	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.physicalDevice,
-		context.surface, &surfaceCapabilities);
-
-	uint32_t desiredImageCount = 2;
-	if (desiredImageCount < surfaceCapabilities.minImageCount) {
-		desiredImageCount = surfaceCapabilities.minImageCount;
-	} else if (surfaceCapabilities.maxImageCount != 0 &&
-		desiredImageCount > surfaceCapabilities.maxImageCount) {
-		desiredImageCount = surfaceCapabilities.maxImageCount;
-	}
-
-	VkExtent2D surfaceResolution =  surfaceCapabilities.currentExtent;
-	if( surfaceResolution.width == -1 ) {
-	    surfaceResolution.width = context.width;
-	    surfaceResolution.height = context.height;
-	} else {
-	    context.width = surfaceResolution.width;
-	    context.height = surfaceResolution.height;
-	}
-
-	VkSurfaceTransformFlagBitsKHR preTransform =
-		surfaceCapabilities.currentTransform;
-	if (surfaceCapabilities.supportedTransforms &
-		VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) {
-		preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-	}
-
-	vkGetPhysicalDeviceSurfacePresentModesKHR(context.physicalDevice,
-		context.surface, &n, nullptr);
-	vector<VkPresentModeKHR> presentModes(n);
-	vkGetPhysicalDeviceSurfacePresentModesKHR(context.physicalDevice,
-		context.surface, &n, presentModes.data());
-
-	VkPresentModeKHR presentationMode = VK_PRESENT_MODE_FIFO_KHR;
-	for (uint32_t i = 0; i < n; i++) {
-		if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
-			presentationMode = VK_PRESENT_MODE_MAILBOX_KHR;
-			break;
-		}
-	}
-
-	VkSwapchainCreateInfoKHR swapchainCreateInfo = {};
-	swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-	swapchainCreateInfo.surface = context.surface;
-	swapchainCreateInfo.minImageCount = desiredImageCount;
-	swapchainCreateInfo.imageFormat = context.colorFormat;
-	swapchainCreateInfo.imageColorSpace = colorSpace;
-	swapchainCreateInfo.imageExtent = surfaceResolution;
-	swapchainCreateInfo.imageArrayLayers = 1;
-	swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-	swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	swapchainCreateInfo.preTransform = preTransform;
-	swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-	swapchainCreateInfo.presentMode = presentationMode;
-	swapchainCreateInfo.clipped = true;
-
-	VkResult result = vkCreateSwapchainKHR(context.device, &swapchainCreateInfo,
-		nullptr, &context.swapchain);
-	if (result != VK_SUCCESS) {
-		throw runtime_error("Unable to create swapchain.");
-	}
-}
-
-void createCommandPool() {
-	VkCommandPoolCreateInfo commandPoolInfo = {};
-	commandPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	commandPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	commandPoolInfo.queueFamilyIndex = context.presentQueueIdx;
-
-	VkResult result = vkCreateCommandPool(context.device, &commandPoolInfo,
-		nullptr, &context.commandPool);
-	if (result != VK_SUCCESS) {
-		throw runtime_error("Unable to create command pool.");
-	}
-}
-
 void createCommandBuffers() {
 	VkCommandBufferAllocateInfo commandBufferInfo = {};
 	commandBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -576,16 +484,18 @@ void createGraphicsPipeline() {
 	}
 
 	VkPipelineShaderStageCreateInfo shaderStageCreateInfo[2] = {};
-	shaderStageCreateInfo[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	shaderStageCreateInfo[0].sType =
+		VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	shaderStageCreateInfo[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
 	shaderStageCreateInfo[0].module = context.vertexShaderModule;
-	shaderStageCreateInfo[0].pName = "main";        // shader entry point function name
+	shaderStageCreateInfo[0].pName = "main";
 	shaderStageCreateInfo[0].pSpecializationInfo = nullptr;
 
-	shaderStageCreateInfo[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	shaderStageCreateInfo[1].sType =
+		VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	shaderStageCreateInfo[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 	shaderStageCreateInfo[1].module = context.fragmentShaderModule;
-	shaderStageCreateInfo[1].pName = "main";        // shader entry point function name
+	shaderStageCreateInfo[1].pName = "main";
 	shaderStageCreateInfo[1].pSpecializationInfo = nullptr;
 
 	VkVertexInputBindingDescription vertexBindingDescription = {};
@@ -600,14 +510,18 @@ void createGraphicsPipeline() {
 	vertexAttributeDescritpion.offset = 0;
 
 	VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
-	vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	vertexInputStateCreateInfo.sType =
+		VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 	vertexInputStateCreateInfo.vertexBindingDescriptionCount = 1;
-	vertexInputStateCreateInfo.pVertexBindingDescriptions = &vertexBindingDescription;
+	vertexInputStateCreateInfo.pVertexBindingDescriptions =
+		&vertexBindingDescription;
 	vertexInputStateCreateInfo.vertexAttributeDescriptionCount = 1;
-	vertexInputStateCreateInfo.pVertexAttributeDescriptions = &vertexAttributeDescritpion;
+	vertexInputStateCreateInfo.pVertexAttributeDescriptions =
+		&vertexAttributeDescritpion;
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo = {};
-	inputAssemblyStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	inputAssemblyStateCreateInfo.sType =
+		VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 	inputAssemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	inputAssemblyStateCreateInfo.primitiveRestartEnable = VK_FALSE;
 
@@ -631,7 +545,8 @@ void createGraphicsPipeline() {
 	viewportState.pScissors = &scissors;
 
 	VkPipelineRasterizationStateCreateInfo rasterizationState = {};
-	rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	rasterizationState.sType =
+		VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 	rasterizationState.depthClampEnable = VK_FALSE;
 	rasterizationState.rasterizerDiscardEnable = VK_FALSE;
 	rasterizationState.polygonMode = VK_POLYGON_MODE_FILL;
@@ -644,7 +559,8 @@ void createGraphicsPipeline() {
 	rasterizationState.lineWidth = 1;
 
 	VkPipelineMultisampleStateCreateInfo multisampleState = {};
-	multisampleState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampleState.sType =
+		VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 	multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 	multisampleState.sampleShadingEnable = VK_FALSE;
 	multisampleState.minSampleShading = 0;
@@ -662,7 +578,8 @@ void createGraphicsPipeline() {
 	noOPStencilState.reference = 0;
 
 	VkPipelineDepthStencilStateCreateInfo depthState = {};
-	depthState.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depthState.sType =
+		VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 	depthState.depthTestEnable = VK_TRUE;
 	depthState.depthWriteEnable = VK_TRUE;
 	depthState.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
@@ -676,7 +593,8 @@ void createGraphicsPipeline() {
 	VkPipelineColorBlendAttachmentState colorBlendAttachmentState = {};
 	colorBlendAttachmentState.blendEnable = VK_FALSE;
 	colorBlendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_COLOR;
-	colorBlendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+	colorBlendAttachmentState.dstColorBlendFactor =
+		VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
 	colorBlendAttachmentState.colorBlendOp = VK_BLEND_OP_ADD;
 	colorBlendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
 	colorBlendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
@@ -684,7 +602,8 @@ void createGraphicsPipeline() {
 	colorBlendAttachmentState.colorWriteMask = 0xf;
 
 	VkPipelineColorBlendStateCreateInfo colorBlendState = {};
-	colorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	colorBlendState.sType =
+		VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 	colorBlendState.logicOpEnable = VK_FALSE;
 	colorBlendState.logicOp = VK_LOGIC_OP_CLEAR;
 	colorBlendState.attachmentCount = 1;
@@ -694,9 +613,11 @@ void createGraphicsPipeline() {
 	colorBlendState.blendConstants[2] = 0.0;
 	colorBlendState.blendConstants[3] = 0.0;
 
-	VkDynamicState dynamicState[2] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+	VkDynamicState dynamicState[2] = { VK_DYNAMIC_STATE_VIEWPORT,
+		VK_DYNAMIC_STATE_SCISSOR };
 	VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo = {};
-	dynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+	dynamicStateCreateInfo.sType =
+		VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 	dynamicStateCreateInfo.dynamicStateCount = 2;
 	dynamicStateCreateInfo.pDynamicStates = dynamicState;
 
@@ -866,9 +787,6 @@ void quit() {
 	for (VkImageView i : context.swapchainImageViews) {
 		vkDestroyImageView(context.device, i, nullptr);
 	}
-	//Command buffers are freed when command pool is destroyed.
-	vkDestroyCommandPool(context.device, context.commandPool, nullptr);
-	vkDestroySwapchainKHR(context.device, context.swapchain, nullptr);
 }
 
 int main(int argc, char** argv) {
@@ -882,12 +800,13 @@ int main(int argc, char** argv) {
 		context.physicalDevice = window.physicalDevice;
 		context.device = window.device;
 		context.presentQueueIdx = window.presentQueueIndex;
-		createSwapchain();
+		context.colorFormat = window.colorFormat;
+		context.swapchain = window.swapchain;
+		context.commandPool = window.presentCommandPool;
 
 		vkGetDeviceQueue(context.device, context.presentQueueIdx, 0,
 			&context.presentQueue);
 
-		createCommandPool();
 		createCommandBuffers();
 		setupImagesAndCreateImageViews();
 

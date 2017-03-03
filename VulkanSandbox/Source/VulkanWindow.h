@@ -35,6 +35,12 @@ public:
 	VkPhysicalDevice physicalDevice;
 	VkDevice device;
 	uint32_t presentQueueIndex;
+	VkFormat colorFormat;
+	VkSwapchainKHR swapchain;
+	VkCommandPool presentCommandPool;
+
+	void createSwapchain();
+	void createCommandPool();
 };
 
 #endif
