@@ -7,21 +7,6 @@
 #include <vector>
 
 struct ContextOld {
-	uint32_t width, height;
-	VkInstance instance;
-	VkSurfaceKHR surface;
-	VkPhysicalDevice physicalDevice;
-	VkPhysicalDeviceProperties physicalDeviceProperties;
-	VkDevice device;
-	uint32_t presentQueueIdx;
-	VkSwapchainKHR swapchain;
-	VkQueue presentQueue;
-	VkCommandPool commandPool;
-	VkCommandBuffer setupCmdBuffer;
-	VkCommandBuffer drawCmdBuffer;
-	std::vector<VkImage> swapchainImages;
-	VkFormat colorFormat;
-	std::vector<VkImageView> swapchainImageViews;
 	VkPhysicalDeviceMemoryProperties memoryProperties;
 	VkImage depthImage;
 	VkDeviceMemory depthImageMemory;

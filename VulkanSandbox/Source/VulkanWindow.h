@@ -3,6 +3,7 @@
 
 #include "VulkanContext.h"
 #include <Engine/Window.h>
+#include <vector>
 
 class VulkanRenderer;
 
@@ -38,9 +39,14 @@ public:
 	VkFormat colorFormat;
 	VkSwapchainKHR swapchain;
 	VkCommandPool presentCommandPool;
+	VkCommandBuffer presentCommandBuffer;
+	std::vector<VkImage> presentImages;
+	VkQueue presentQueue;
+	std::vector<VkImageView> presentImageViews;
 
 	void createSwapchain();
 	void createCommandPool();
+	void setupSwapchainImages();
 };
 
 #endif
