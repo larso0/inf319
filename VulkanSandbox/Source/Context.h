@@ -7,10 +7,6 @@
 #include <vector>
 
 struct ContextOld {
-	VkPhysicalDeviceMemoryProperties memoryProperties;
-	VkImage depthImage;
-	VkDeviceMemory depthImageMemory;
-	VkImageView depthImageView;
 	VkRenderPass renderPass;
 	std::vector<VkFramebuffer> framebuffers;
 	VkBuffer vertexBuffer;

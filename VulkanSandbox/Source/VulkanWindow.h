@@ -43,10 +43,15 @@ public:
 	std::vector<VkImage> presentImages;
 	VkQueue presentQueue;
 	std::vector<VkImageView> presentImageViews;
+	VkPhysicalDeviceMemoryProperties memoryProperties;
+	VkImage depthImage;
+	VkDeviceMemory depthImageMemory;
+	VkImageView depthImageView;
 
 	void createSwapchain();
 	void createCommandPool();
 	void setupSwapchainImages();
+	void createDepthBuffer();
 };
 
 #endif
