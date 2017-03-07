@@ -15,82 +15,6 @@ using namespace Engine;
 
 static ContextOld context;
 
-void createRenderPass(VulkanWindow& window) {
-	VkAttachmentDescription passAttachments[2] = {};
-	passAttachments[0].format = window.colorFormat;
-	passAttachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-	passAttachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	passAttachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	passAttachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	passAttachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	passAttachments[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	passAttachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-	passAttachments[1].format = VK_FORMAT_D16_UNORM;
-	passAttachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
-	passAttachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	passAttachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	passAttachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	passAttachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	passAttachments[1].initialLayout =
-		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-	passAttachments[1].finalLayout =
-		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-	VkAttachmentReference colorAttachmentReference = {};
-	colorAttachmentReference.attachment = 0;
-	colorAttachmentReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-	VkAttachmentReference depthAttachmentReference = {};
-	depthAttachmentReference.attachment = 1;
-	depthAttachmentReference.layout =
-		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-	VkSubpassDescription subpass = {};
-	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpass.colorAttachmentCount = 1;
-	subpass.pColorAttachments = &colorAttachmentReference;
-	subpass.pDepthStencilAttachment = &depthAttachmentReference;
-
-	VkRenderPassCreateInfo renderPassCreateInfo = {};
-	renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	renderPassCreateInfo.attachmentCount = 2;
-	renderPassCreateInfo.pAttachments = passAttachments;
-	renderPassCreateInfo.subpassCount = 1;
-	renderPassCreateInfo.pSubpasses = &subpass;
-
-	VkResult result = vkCreateRenderPass(window.device, &renderPassCreateInfo,
-		nullptr, &context.renderPass);
-	if (result != VK_SUCCESS) {
-		throw runtime_error("Failed to create render pass.");
-	}
-}
-
-void createFramebuffers(VulkanWindow& window) {
-	VkImageView framebufferAttachments[2];
-	framebufferAttachments[1] = window.depthImageView;
-
-	VkFramebufferCreateInfo framebufferCreateInfo = {};
-	framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	framebufferCreateInfo.renderPass = context.renderPass;
-	framebufferCreateInfo.attachmentCount = 2;
-	framebufferCreateInfo.pAttachments = framebufferAttachments;
-	framebufferCreateInfo.width = window.width;
-	framebufferCreateInfo.height = window.height;
-	framebufferCreateInfo.layers = 1;
-
-	uint32_t imageCount = window.presentImages.size();
-	context.framebuffers.resize(imageCount);
-	for (uint32_t i = 0; i < imageCount; i++) {
-		framebufferAttachments[0] = window.presentImageViews[i];
-		VkResult result = vkCreateFramebuffer(window.device,
-			&framebufferCreateInfo, nullptr, context.framebuffers.data() + i);
-		if (result != VK_SUCCESS) {
-			throw runtime_error("Failed to create framebuffer.");
-		}
-	}
-}
-
 void createVertexBuffer(VulkanWindow& window) {
 	Mesh cube = generateCube();
 
@@ -352,7 +276,7 @@ void createGraphicsPipeline(VulkanWindow& window) {
 	pipelineCreateInfo.pColorBlendState = &colorBlendState;
 	pipelineCreateInfo.pDynamicState = &dynamicStateCreateInfo;
 	pipelineCreateInfo.layout = context.pipelineLayout;
-	pipelineCreateInfo.renderPass = context.renderPass;
+	pipelineCreateInfo.renderPass = window.renderPass;
 	pipelineCreateInfo.subpass = 0;
 	pipelineCreateInfo.basePipelineHandle = nullptr;
 	pipelineCreateInfo.basePipelineIndex = 0;
@@ -407,8 +331,8 @@ void render(VulkanWindow& window) {
 	VkClearValue clearValue[] = { { 0.5f, 0.5f, 0.5f, 1.f }, { 1.f, 0.f } };
 	VkRenderPassBeginInfo renderPassBeginInfo = { };
 	renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	renderPassBeginInfo.renderPass = context.renderPass;
-	renderPassBeginInfo.framebuffer = context.framebuffers[nextImageIdx];
+	renderPassBeginInfo.renderPass = window.renderPass;
+	renderPassBeginInfo.framebuffer = window.framebuffers[nextImageIdx];
 	renderPassBeginInfo.renderArea = {0, 0, window.width, window.height};
 	renderPassBeginInfo.clearValueCount = 2;
 	renderPassBeginInfo.pClearValues = clearValue;
@@ -494,10 +418,6 @@ void quit(VulkanWindow& window) {
 	vkDestroyShaderModule(window.device, context.vertexShaderModule, nullptr);
 	vkFreeMemory(window.device, context.vertexBufferMemory, nullptr);
 	vkDestroyBuffer(window.device, context.vertexBuffer, nullptr);
-	for (VkFramebuffer b : context.framebuffers) {
-		vkDestroyFramebuffer(window.device, b, nullptr);
-	}
-	vkDestroyRenderPass(window.device, context.renderPass, nullptr);
 }
 
 int main(int argc, char** argv) {
@@ -505,8 +425,6 @@ int main(int argc, char** argv) {
 		VulkanContext vkContext;
 		VulkanWindow window(vkContext);
 
-		createRenderPass(window);
-		createFramebuffers(window);
 		createVertexBuffer(window);
 		createShaderModule("Shaders/Simple.vert.spv",
 			&context.vertexShaderModule, window.device);

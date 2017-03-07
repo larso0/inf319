@@ -47,11 +47,15 @@ public:
 	VkImage depthImage;
 	VkDeviceMemory depthImageMemory;
 	VkImageView depthImageView;
+	VkRenderPass renderPass;
+	std::vector<VkFramebuffer> framebuffers;
 
 	void createSwapchain();
 	void createCommandPool();
 	void setupSwapchainImages();
 	void createDepthBuffer();
+	void createRenderPass();
+	void createFramebuffers();
 };
 
 #endif

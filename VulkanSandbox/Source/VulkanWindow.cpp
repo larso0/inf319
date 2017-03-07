@@ -16,7 +16,8 @@ VulkanWindow::VulkanWindow(VulkanContext& context) :
 	presentCommandBuffer(VK_NULL_HANDLE),
 	depthImage(VK_NULL_HANDLE),
 	depthImageMemory(VK_NULL_HANDLE),
-	depthImageView(VK_NULL_HANDLE)
+	depthImageView(VK_NULL_HANDLE),
+	renderPass(VK_NULL_HANDLE)
 {
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 	handle = glfwCreateWindow(width, height, "VulkanSandbox", nullptr, nullptr);
@@ -49,9 +50,15 @@ VulkanWindow::VulkanWindow(VulkanContext& context) :
 
 	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
 	createDepthBuffer();
+	createRenderPass();
+	createFramebuffers();
 }
 
 VulkanWindow::~VulkanWindow() {
+	for (VkFramebuffer b : framebuffers) {
+		vkDestroyFramebuffer(device, b, nullptr);
+	}
+	vkDestroyRenderPass(device, renderPass, nullptr);
 	vkFreeMemory(device, depthImageMemory, nullptr);
 	vkDestroyImageView(device, depthImageView, nullptr);
 	vkDestroyImage(device, depthImage, nullptr);
@@ -60,7 +67,6 @@ VulkanWindow::~VulkanWindow() {
 	}
 	vkDestroyCommandPool(device, presentCommandPool, nullptr);
 	vkDestroySwapchainKHR(device, swapchain, nullptr);
-	vkDestroyDevice(device, nullptr);
 	vkDestroySurfaceKHR(context.instance, surface, nullptr);
 	glfwDestroyWindow(handle);
 }
@@ -408,6 +414,84 @@ void VulkanWindow::createDepthBuffer() {
 		&depthImageView);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to create depth image view.");
+	}
+
+}
+
+void VulkanWindow::createRenderPass() {
+	VkAttachmentDescription passAttachments[2] = {};
+	passAttachments[0].format = colorFormat;
+	passAttachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
+	passAttachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	passAttachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	passAttachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	passAttachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	passAttachments[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	passAttachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	passAttachments[1].format = VK_FORMAT_D16_UNORM;
+	passAttachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
+	passAttachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	passAttachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	passAttachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	passAttachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	passAttachments[1].initialLayout =
+		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	passAttachments[1].finalLayout =
+		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentReference colorAttachmentReference = {};
+	colorAttachmentReference.attachment = 0;
+	colorAttachmentReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentReference depthAttachmentReference = {};
+	depthAttachmentReference.attachment = 1;
+	depthAttachmentReference.layout =
+		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkSubpassDescription subpass = {};
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass.colorAttachmentCount = 1;
+	subpass.pColorAttachments = &colorAttachmentReference;
+	subpass.pDepthStencilAttachment = &depthAttachmentReference;
+
+	VkRenderPassCreateInfo renderPassCreateInfo = {};
+	renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	renderPassCreateInfo.attachmentCount = 2;
+	renderPassCreateInfo.pAttachments = passAttachments;
+	renderPassCreateInfo.subpassCount = 1;
+	renderPassCreateInfo.pSubpasses = &subpass;
+
+	VkResult result = vkCreateRenderPass(device, &renderPassCreateInfo,
+		nullptr, &renderPass);
+	if (result != VK_SUCCESS) {
+		throw runtime_error("Failed to create render pass.");
+	}
+
+}
+
+void VulkanWindow::createFramebuffers() {
+	VkImageView framebufferAttachments[2];
+	framebufferAttachments[1] = depthImageView;
+
+	VkFramebufferCreateInfo framebufferCreateInfo = {};
+	framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	framebufferCreateInfo.renderPass = renderPass;
+	framebufferCreateInfo.attachmentCount = 2;
+	framebufferCreateInfo.pAttachments = framebufferAttachments;
+	framebufferCreateInfo.width = width;
+	framebufferCreateInfo.height = height;
+	framebufferCreateInfo.layers = 1;
+
+	uint32_t imageCount = presentImages.size();
+	framebuffers.resize(imageCount);
+	for (uint32_t i = 0; i < imageCount; i++) {
+		framebufferAttachments[0] = presentImageViews[i];
+		VkResult result = vkCreateFramebuffer(device, &framebufferCreateInfo,
+			nullptr, framebuffers.data() + i);
+		if (result != VK_SUCCESS) {
+			throw runtime_error("Failed to create framebuffer.");
+		}
 	}
 
 }

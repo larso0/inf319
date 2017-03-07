@@ -7,8 +7,6 @@
 #include <vector>
 
 struct ContextOld {
-	VkRenderPass renderPass;
-	std::vector<VkFramebuffer> framebuffers;
 	VkBuffer vertexBuffer;
 	VkDeviceMemory vertexBufferMemory;
 	VkShaderModule vertexShaderModule;
