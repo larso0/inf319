@@ -9,6 +9,7 @@
 #include <fstream>
 #include "VulkanContext.h"
 #include "VulkanWindow.h"
+#include "VulkanRenderer.h"
 
 using namespace std;
 using namespace Engine;
@@ -77,40 +78,7 @@ void createVertexBuffer(VulkanWindow& window) {
 	}
 }
 
-vector<char> readFile(const string& filename) {
-    ifstream file(filename, ios::ate | ios::binary);
-
-    if (!file.is_open()) {
-        throw runtime_error("failed to open file!");
-    }
-
-    size_t fileSize = (size_t) file.tellg();
-    vector<char> buffer(fileSize);
-
-    file.seekg(0);
-    file.read(buffer.data(), fileSize);
-
-    file.close();
-
-    return buffer;
-}
-
-void createShaderModule(const string& filename, VkShaderModule* dst,
-	VkDevice device) {
-	vector<char> code = readFile(filename);
-
-	VkShaderModuleCreateInfo info = {};
-	info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-	info.codeSize = code.size();
-	info.pCode = (uint32_t *)code.data();
-
-	VkResult result = vkCreateShaderModule(device, &info, nullptr, dst);
-	if (result != VK_SUCCESS) {
-		throw runtime_error("Failed to create shader module.");
-	}
-}
-
-void createGraphicsPipeline(VulkanWindow& window) {
+void createGraphicsPipeline(VulkanWindow& window, VulkanRenderer& renderer) {
 	VkPipelineLayoutCreateInfo layoutCreateInfo = {};
 	layoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	layoutCreateInfo.setLayoutCount = 0;
@@ -128,14 +96,14 @@ void createGraphicsPipeline(VulkanWindow& window) {
 	shaderStageCreateInfo[0].sType =
 		VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	shaderStageCreateInfo[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-	shaderStageCreateInfo[0].module = context.vertexShaderModule;
+	shaderStageCreateInfo[0].module = renderer.vertexShaderModule;
 	shaderStageCreateInfo[0].pName = "main";
 	shaderStageCreateInfo[0].pSpecializationInfo = nullptr;
 
 	shaderStageCreateInfo[1].sType =
 		VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	shaderStageCreateInfo[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	shaderStageCreateInfo[1].module = context.fragmentShaderModule;
+	shaderStageCreateInfo[1].module = renderer.fragmentShaderModule;
 	shaderStageCreateInfo[1].pName = "main";
 	shaderStageCreateInfo[1].pSpecializationInfo = nullptr;
 
@@ -413,9 +381,6 @@ void render(VulkanWindow& window) {
 void quit(VulkanWindow& window) {
 	vkDestroyPipelineLayout(window.device, context.pipelineLayout, nullptr);
 	vkDestroyPipeline(window.device, context.pipeline, nullptr);
-	vkDestroyShaderModule(window.device, context.fragmentShaderModule,
-		nullptr);
-	vkDestroyShaderModule(window.device, context.vertexShaderModule, nullptr);
 	vkFreeMemory(window.device, context.vertexBufferMemory, nullptr);
 	vkDestroyBuffer(window.device, context.vertexBuffer, nullptr);
 }
@@ -424,13 +389,10 @@ int main(int argc, char** argv) {
 	try {
 		VulkanContext vkContext;
 		VulkanWindow window(vkContext);
+		VulkanRenderer renderer(window);
 
 		createVertexBuffer(window);
-		createShaderModule("Shaders/Simple.vert.spv",
-			&context.vertexShaderModule, window.device);
-		createShaderModule("Shaders/Simple.frag.spv",
-			&context.fragmentShaderModule, window.device);
-		createGraphicsPipeline(window);
+		createGraphicsPipeline(window, renderer);
 
 		while (!glfwWindowShouldClose(window.handle)) {
 			render(window);

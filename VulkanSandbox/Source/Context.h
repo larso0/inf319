@@ -9,8 +9,6 @@
 struct ContextOld {
 	VkBuffer vertexBuffer;
 	VkDeviceMemory vertexBufferMemory;
-	VkShaderModule vertexShaderModule;
-	VkShaderModule fragmentShaderModule;
 	VkPipelineLayout pipelineLayout;
 	VkPipeline pipeline;
 };
