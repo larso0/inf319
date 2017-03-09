@@ -1,12 +1,15 @@
 #ifndef VULKANPERMESH_H
 #define VULKANPERMESH_H
 
-#include "VulkanRenderer.h"
 #include <vector>
+#include <Engine/Mesh.h>
+#include <vulkan/vulkan.h>
+
+class VulkanRenderer;
 
 class VulkanPerMesh {
 public:
-	VulkanPerMesh(VulkanRenderer& renderer, Engine::Mesh* mesh);
+	VulkanPerMesh(VulkanRenderer& renderer, const Engine::Mesh* mesh);
 	virtual ~VulkanPerMesh();
 
 	void record(VkCommandBuffer cmdBuffer);
@@ -20,10 +23,13 @@ public:
 	};
 
 	std::vector<PerBuffer> buffers;
+	VkPrimitiveTopology topology;
 	VkPipelineLayout pipelineLayout;
 	VkPipeline pipeline;
+	bool indexed;
+	uint32_t indexCount;
 
-	void createVertexBuffer(Engine::Mesh* mesh);
+	void createBuffers(const Engine::Mesh* mesh);
 	void createPipeline();
 };
 

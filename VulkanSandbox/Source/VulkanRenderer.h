@@ -2,7 +2,10 @@
 #define VULKANRENDERER_H
 
 #include "VulkanWindow.h"
+#include "VulkanPerMesh.h"
 #include <Engine/Renderer.h>
+#include <unordered_map>
+#include <memory>
 
 class VulkanRenderer : public Engine::Renderer {
 public:
@@ -17,6 +20,9 @@ public:
 
 	VkShaderModule vertexShaderModule;
 	VkShaderModule fragmentShaderModule;
+
+	std::unordered_map<const Engine::Mesh*, std::shared_ptr<VulkanPerMesh>>
+	meshCache;
 };
 
 #endif

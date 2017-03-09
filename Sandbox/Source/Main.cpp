@@ -143,7 +143,6 @@ GLenum primitiveType(Mesh::Topology pt) {
 	switch (pt) {
 	case Mesh::Topology::Points: return GL_POINTS;
 	case Mesh::Topology::Lines: return GL_LINES;
-	case Mesh::Topology::LineLoop: return GL_LINE_LOOP;
 	case Mesh::Topology::LineStrip: return GL_LINE_STRIP;
 	case Mesh::Topology::Triangles: return GL_TRIANGLES;
 	case Mesh::Topology::TriangleStrip: return GL_TRIANGLE_STRIP;

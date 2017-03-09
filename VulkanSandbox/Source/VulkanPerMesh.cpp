@@ -1,15 +1,40 @@
 #include "VulkanPerMesh.h"
+#include "VulkanRenderer.h"
+#include <Engine/IndexedMesh.h>
 #include <stdexcept>
 
 using namespace std;
 using namespace Engine;
 
-VulkanPerMesh::VulkanPerMesh(VulkanRenderer& renderer, Mesh* mesh) :
+VulkanPerMesh::VulkanPerMesh(VulkanRenderer& renderer, const Mesh* mesh) :
 	renderer(renderer),
+	topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST),
 	pipelineLayout(VK_NULL_HANDLE),
-	pipeline(VK_NULL_HANDLE)
+	pipeline(VK_NULL_HANDLE),
+	indexed(false),
+	indexCount(0)
 {
-	createVertexBuffer(mesh);
+	createBuffers(mesh);
+	switch (mesh->getTopology()) {
+	case Mesh::Topology::Points:
+		topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+		break;
+	case Mesh::Topology::Lines:
+		topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+		break;
+	case Mesh::Topology::LineStrip:
+		topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+		break;
+	case Mesh::Topology::Triangles:
+		topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		break;
+	case Mesh::Topology::TriangleStrip:
+		topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+		break;
+	case Mesh::Topology::TriangleFan:
+		topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
+		break;
+	}
 	createPipeline();
 }
 
@@ -22,7 +47,7 @@ VulkanPerMesh::~VulkanPerMesh() {
 	}
 }
 
-void VulkanPerMesh::createVertexBuffer(Mesh* mesh) {
+void VulkanPerMesh::createBuffers(const Mesh* mesh) {
 	PerBuffer buffer;
 
 	VkBufferCreateInfo vertexBufferInfo = {};
@@ -85,6 +110,52 @@ void VulkanPerMesh::createVertexBuffer(Mesh* mesh) {
 	}
 
 	buffers.push_back(buffer);
+
+	const IndexedMesh* indexedMesh = dynamic_cast<const IndexedMesh*>(mesh);
+	if (indexedMesh) {
+		indexed = true;
+		indexCount = (uint32_t)indexedMesh->getElementCount();
+		PerBuffer buffer;
+		VkBufferCreateInfo indexBufferInfo = {};
+		indexBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		indexBufferInfo.size = indexedMesh->getIndexDataSize();
+		indexBufferInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+		indexBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+		VkResult result = vkCreateBuffer(renderer.window.device,
+			&indexBufferInfo, nullptr, &buffer.buffer);
+		if (result != VK_SUCCESS) {
+			throw runtime_error("Failed to create index buffer.");
+		}
+
+		VkMemoryRequirements requirements = {};
+		vkGetBufferMemoryRequirements(renderer.window.device, buffer.buffer,
+			&requirements);
+		bufferAllocateInfo.allocationSize = requirements.size;
+		result = vkAllocateMemory(renderer.window.device, &bufferAllocateInfo,
+			nullptr, &buffer.memory);
+		if (result != VK_SUCCESS) {
+			throw runtime_error("Failed to allocate index buffer memory.");
+		}
+
+		result = vkMapMemory(renderer.window.device, buffer.memory, 0,
+			VK_WHOLE_SIZE, 0, &mapped);
+		if (result != VK_SUCCESS) {
+			throw runtime_error("Failed to map vertex buffer memory.");
+		}
+
+		memcpy(mapped, indexedMesh->getIndexData(),
+			indexedMesh->getIndexDataSize());
+		vkUnmapMemory(renderer.window.device, buffer.memory);
+
+		result = vkBindBufferMemory(renderer.window.device, buffer.buffer,
+			buffer.memory, 0);
+		if (result != VK_SUCCESS) {
+			throw runtime_error("Failed to bind index buffer memory.");
+		}
+
+		buffers.push_back(buffer);
+	}
 }
 
 void VulkanPerMesh::createPipeline() {
@@ -140,7 +211,7 @@ void VulkanPerMesh::createPipeline() {
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo = {};
 	inputAssemblyStateCreateInfo.sType =
 		VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-	inputAssemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	inputAssemblyStateCreateInfo.topology = topology;
 	inputAssemblyStateCreateInfo.primitiveRestartEnable = VK_FALSE;
 
 	VkViewport viewport = {};
@@ -277,5 +348,10 @@ void VulkanPerMesh::record(VkCommandBuffer cmdBuffer) {
 	VkDeviceSize offsets = {};
 	vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &buffers[0].buffer, &offsets);
 
-	vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
+	if (indexed) {
+		vkCmdBindIndexBuffer(cmdBuffer, buffers[1].buffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdDrawIndexed(cmdBuffer, indexCount, 1, 0, 0, 0);
+	} else {
+		vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
+	}
 }

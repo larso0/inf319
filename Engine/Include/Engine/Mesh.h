@@ -10,7 +10,6 @@ namespace Engine {
 		enum class Topology {
 			Points,
 			Lines,
-			LineLoop,
 			LineStrip,
 			Triangles,
 			TriangleStrip,
