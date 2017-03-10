@@ -6,8 +6,6 @@
 #include <vulkan/vulkan.h>
 #include "VulkanShaderProgram.h"
 
-class VulkanRenderer;
-
 class VulkanPerMesh {
 public:
 	VulkanPerMesh();

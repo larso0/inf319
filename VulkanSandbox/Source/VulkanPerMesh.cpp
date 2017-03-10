@@ -1,5 +1,4 @@
 #include "VulkanPerMesh.h"
-#include "VulkanRenderer.h"
 #include <Engine/IndexedMesh.h>
 #include <stdexcept>
 

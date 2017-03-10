@@ -16,7 +16,7 @@ public:
 	void render(const Engine::Camera& camera,
 		const std::vector<Engine::Entity>& entities) override;
 
-//private:
+private:
 	VulkanWindow& window;
 
 	VulkanShaderProgram program;
