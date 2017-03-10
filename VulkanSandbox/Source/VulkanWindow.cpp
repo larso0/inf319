@@ -8,8 +8,8 @@ VulkanWindow::VulkanWindow(VulkanContext& context) :
 	context(context),
 	handle(nullptr),
 	surface(VK_NULL_HANDLE),
-	width(800),
-	height(600),
+	viewport({ 0, 0, 800, 600, 0, 1 }),
+	scissor( { { 0, 0 }, { 800, 600 } }),
 	colorFormat(VK_FORMAT_B8G8R8_UNORM),
 	swapchain(VK_NULL_HANDLE),
 	presentCommandPool(VK_NULL_HANDLE),
@@ -20,7 +20,8 @@ VulkanWindow::VulkanWindow(VulkanContext& context) :
 	renderPass(VK_NULL_HANDLE)
 {
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-	handle = glfwCreateWindow(width, height, "VulkanSandbox", nullptr, nullptr);
+	handle = glfwCreateWindow(getWidth(), getHeight(), "VulkanSandbox",
+		nullptr, nullptr);
 	if (!handle) {
 		throw runtime_error("Failed to create GLFW window.");
 	}
@@ -99,13 +100,12 @@ void VulkanWindow::createSwapchain() {
 		desiredImageCount = surfaceCapabilities.maxImageCount;
 	}
 
-	VkExtent2D surfaceResolution =  surfaceCapabilities.currentExtent;
+	VkExtent2D surfaceResolution = surfaceCapabilities.currentExtent;
 	if( surfaceResolution.width == -1 ) {
-	    surfaceResolution.width = width;
-	    surfaceResolution.height = height;
+	    surfaceResolution.width = getWidth();
+	    surfaceResolution.height = getHeight();
 	} else {
-	    width = surfaceResolution.width;
-	    height = surfaceResolution.height;
+		resize(surfaceResolution.width, surfaceResolution.height);
 	}
 
 	VkSurfaceTransformFlagBitsKHR preTransform =
@@ -291,7 +291,7 @@ void VulkanWindow::createDepthBuffer() {
 	imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
 	imageCreateInfo.format = VK_FORMAT_D16_UNORM;
-	imageCreateInfo.extent = { width, height, 1 };
+	imageCreateInfo.extent = { getWidth(), getHeight(), 1 };
 	imageCreateInfo.mipLevels = 1;
 	imageCreateInfo.arrayLayers = 1;
 	imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -479,8 +479,8 @@ void VulkanWindow::createFramebuffers() {
 	framebufferCreateInfo.renderPass = renderPass;
 	framebufferCreateInfo.attachmentCount = 2;
 	framebufferCreateInfo.pAttachments = framebufferAttachments;
-	framebufferCreateInfo.width = width;
-	framebufferCreateInfo.height = height;
+	framebufferCreateInfo.width = getWidth();
+	framebufferCreateInfo.height = getHeight();
 	framebufferCreateInfo.layers = 1;
 
 	uint32_t imageCount = presentImages.size();

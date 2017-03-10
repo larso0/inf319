@@ -6,15 +6,33 @@
 using namespace std;
 using namespace Engine;
 
-VulkanPerMesh::VulkanPerMesh(VulkanRenderer& renderer, const Mesh* mesh) :
-	renderer(renderer),
+VulkanPerMesh::VulkanPerMesh() :
+	device(VK_NULL_HANDLE),
 	topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST),
 	pipelineLayout(VK_NULL_HANDLE),
 	pipeline(VK_NULL_HANDLE),
 	indexed(false),
 	indexCount(0)
 {
-	createBuffers(mesh);
+}
+
+VulkanPerMesh::~VulkanPerMesh() {
+	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+	vkDestroyPipeline(device, pipeline, nullptr);
+	for (PerBuffer& b : buffers) {
+		vkFreeMemory(device, b.memory, nullptr);
+		vkDestroyBuffer(device, b.buffer, nullptr);
+	}
+}
+
+void VulkanPerMesh::init(const VulkanShaderProgram& shaderProgram,
+	const Engine::Mesh* mesh,
+	const VkPhysicalDeviceMemoryProperties& memoryProperties,
+	VkViewport* viewport, VkRect2D* scissor,
+	VkRenderPass renderPass) {
+	device = shaderProgram.getDevice();
+	createBuffers(mesh, memoryProperties);
+
 	switch (mesh->getTopology()) {
 	case Mesh::Topology::Points:
 		topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
@@ -35,19 +53,13 @@ VulkanPerMesh::VulkanPerMesh(VulkanRenderer& renderer, const Mesh* mesh) :
 		topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
 		break;
 	}
-	createPipeline();
+
+	createPipeline(shaderProgram.getShaderStageCreateInfos(), viewport, scissor,
+		renderPass);
 }
 
-VulkanPerMesh::~VulkanPerMesh() {
-	vkDestroyPipelineLayout(renderer.window.device, pipelineLayout, nullptr);
-	vkDestroyPipeline(renderer.window.device, pipeline, nullptr);
-	for (PerBuffer& b : buffers) {
-		vkFreeMemory(renderer.window.device, b.memory, nullptr);
-		vkDestroyBuffer(renderer.window.device, b.buffer, nullptr);
-	}
-}
-
-void VulkanPerMesh::createBuffers(const Mesh* mesh) {
+void VulkanPerMesh::createBuffers(const Mesh* mesh,
+	const VkPhysicalDeviceMemoryProperties& memoryProperties) {
 	PerBuffer buffer;
 
 	VkBufferCreateInfo vertexBufferInfo = {};
@@ -56,14 +68,14 @@ void VulkanPerMesh::createBuffers(const Mesh* mesh) {
 	vertexBufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 	vertexBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-	VkResult result = vkCreateBuffer(renderer.window.device, &vertexBufferInfo,
-		nullptr, &buffer.buffer);
+	VkResult result = vkCreateBuffer(device, &vertexBufferInfo, nullptr,
+		&buffer.buffer);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to create vertex buffer.");
 	}
 
 	VkMemoryRequirements vertexBufferMemoryRequirements = {};
-	vkGetBufferMemoryRequirements(renderer.window.device, buffer.buffer,
+	vkGetBufferMemoryRequirements(device, buffer.buffer,
 		&vertexBufferMemoryRequirements);
 
 	VkMemoryAllocateInfo bufferAllocateInfo = {};
@@ -75,8 +87,7 @@ void VulkanPerMesh::createBuffers(const Mesh* mesh) {
 	VkMemoryPropertyFlags vertexDesiredMemoryFlags =
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 	for (uint32_t i = 0; i < 32; ++i) {
-		VkMemoryType memoryType =
-			renderer.window.memoryProperties.memoryTypes[i];
+		VkMemoryType memoryType = memoryProperties.memoryTypes[i];
 		if (vertexMemoryTypeBits & 1) {
 			if ((memoryType.propertyFlags & vertexDesiredMemoryFlags)
 				== vertexDesiredMemoryFlags) {
@@ -87,24 +98,23 @@ void VulkanPerMesh::createBuffers(const Mesh* mesh) {
 		vertexMemoryTypeBits = vertexMemoryTypeBits >> 1;
 	}
 
-	result = vkAllocateMemory(renderer.window.device, &bufferAllocateInfo,
-		nullptr, &buffer.memory);
+	result = vkAllocateMemory(device, &bufferAllocateInfo, nullptr,
+		&buffer.memory);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to allocate vertex buffer memory.");
 	}
 
 	void* mapped;
-	result = vkMapMemory(renderer.window.device, buffer.memory, 0,
-		VK_WHOLE_SIZE, 0, &mapped);
+	result = vkMapMemory(device, buffer.memory, 0,
+	VK_WHOLE_SIZE, 0, &mapped);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to map vertex buffer memory.");
 	}
 
 	memcpy(mapped, mesh->getVertexData(), mesh->getVertexDataSize());
-	vkUnmapMemory(renderer.window.device, buffer.memory);
+	vkUnmapMemory(device, buffer.memory);
 
-	result = vkBindBufferMemory(renderer.window.device, buffer.buffer,
-		buffer.memory, 0);
+	result = vkBindBufferMemory(device, buffer.buffer, buffer.memory, 0);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to bind vertex buffer memory.");
 	}
@@ -122,34 +132,32 @@ void VulkanPerMesh::createBuffers(const Mesh* mesh) {
 		indexBufferInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 		indexBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-		VkResult result = vkCreateBuffer(renderer.window.device,
-			&indexBufferInfo, nullptr, &buffer.buffer);
+		VkResult result = vkCreateBuffer(device, &indexBufferInfo, nullptr,
+			&buffer.buffer);
 		if (result != VK_SUCCESS) {
 			throw runtime_error("Failed to create index buffer.");
 		}
 
 		VkMemoryRequirements requirements = {};
-		vkGetBufferMemoryRequirements(renderer.window.device, buffer.buffer,
-			&requirements);
+		vkGetBufferMemoryRequirements(device, buffer.buffer, &requirements);
 		bufferAllocateInfo.allocationSize = requirements.size;
-		result = vkAllocateMemory(renderer.window.device, &bufferAllocateInfo,
-			nullptr, &buffer.memory);
+		result = vkAllocateMemory(device, &bufferAllocateInfo, nullptr,
+			&buffer.memory);
 		if (result != VK_SUCCESS) {
 			throw runtime_error("Failed to allocate index buffer memory.");
 		}
 
-		result = vkMapMemory(renderer.window.device, buffer.memory, 0,
-			VK_WHOLE_SIZE, 0, &mapped);
+		result = vkMapMemory(device, buffer.memory, 0,
+		VK_WHOLE_SIZE, 0, &mapped);
 		if (result != VK_SUCCESS) {
 			throw runtime_error("Failed to map vertex buffer memory.");
 		}
 
 		memcpy(mapped, indexedMesh->getIndexData(),
 			indexedMesh->getIndexDataSize());
-		vkUnmapMemory(renderer.window.device, buffer.memory);
+		vkUnmapMemory(device, buffer.memory);
 
-		result = vkBindBufferMemory(renderer.window.device, buffer.buffer,
-			buffer.memory, 0);
+		result = vkBindBufferMemory(device, buffer.buffer, buffer.memory, 0);
 		if (result != VK_SUCCESS) {
 			throw runtime_error("Failed to bind index buffer memory.");
 		}
@@ -158,7 +166,10 @@ void VulkanPerMesh::createBuffers(const Mesh* mesh) {
 	}
 }
 
-void VulkanPerMesh::createPipeline() {
+void VulkanPerMesh::createPipeline(
+	const vector<VkPipelineShaderStageCreateInfo>& stages,
+	VkViewport* viewport, VkRect2D* scissor,
+	VkRenderPass renderPass) {
 	VkPipelineLayoutCreateInfo layoutCreateInfo = {};
 	layoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	layoutCreateInfo.setLayoutCount = 0;
@@ -166,26 +177,11 @@ void VulkanPerMesh::createPipeline() {
 	layoutCreateInfo.pushConstantRangeCount = 0;
 	layoutCreateInfo.pPushConstantRanges = nullptr;
 
-	VkResult result = vkCreatePipelineLayout(renderer.window.device,
-		&layoutCreateInfo, nullptr, &pipelineLayout);
+	VkResult result = vkCreatePipelineLayout(device, &layoutCreateInfo, nullptr,
+		&pipelineLayout);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to create pipeline layout.");
 	}
-
-	VkPipelineShaderStageCreateInfo shaderStageCreateInfo[2] = {};
-	shaderStageCreateInfo[0].sType =
-		VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	shaderStageCreateInfo[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-	shaderStageCreateInfo[0].module = renderer.vertexShaderModule;
-	shaderStageCreateInfo[0].pName = "main";
-	shaderStageCreateInfo[0].pSpecializationInfo = nullptr;
-
-	shaderStageCreateInfo[1].sType =
-		VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	shaderStageCreateInfo[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	shaderStageCreateInfo[1].module = renderer.fragmentShaderModule;
-	shaderStageCreateInfo[1].pName = "main";
-	shaderStageCreateInfo[1].pSpecializationInfo = nullptr;
 
 	VkVertexInputBindingDescription vertexBindingDescription = {};
 	vertexBindingDescription.binding = 0;
@@ -214,24 +210,12 @@ void VulkanPerMesh::createPipeline() {
 	inputAssemblyStateCreateInfo.topology = topology;
 	inputAssemblyStateCreateInfo.primitiveRestartEnable = VK_FALSE;
 
-	VkViewport viewport = {};
-	viewport.x = 0;
-	viewport.y = 0;
-	viewport.width = renderer.window.width;
-	viewport.height = renderer.window.height;
-	viewport.minDepth = 0;
-	viewport.maxDepth = 1;
-
-	VkRect2D scissors = {};
-	scissors.offset = { 0, 0 };
-	scissors.extent = { renderer.window.width, renderer.window.height };
-
 	VkPipelineViewportStateCreateInfo viewportState = {};
 	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 	viewportState.viewportCount = 1;
-	viewportState.pViewports = &viewport;
+	viewportState.pViewports = viewport;
 	viewportState.scissorCount = 1;
-	viewportState.pScissors = &scissors;
+	viewportState.pScissors = scissor;
 
 	VkPipelineRasterizationStateCreateInfo rasterizationState = {};
 	rasterizationState.sType =
@@ -312,8 +296,8 @@ void VulkanPerMesh::createPipeline() {
 
 	VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
 	pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pipelineCreateInfo.stageCount = 2;
-	pipelineCreateInfo.pStages = shaderStageCreateInfo;
+	pipelineCreateInfo.stageCount = stages.size();
+	pipelineCreateInfo.pStages = stages.data();
 	pipelineCreateInfo.pVertexInputState = &vertexInputStateCreateInfo;
 	pipelineCreateInfo.pInputAssemblyState = &inputAssemblyStateCreateInfo;
 	pipelineCreateInfo.pTessellationState = nullptr;
@@ -324,26 +308,29 @@ void VulkanPerMesh::createPipeline() {
 	pipelineCreateInfo.pColorBlendState = &colorBlendState;
 	pipelineCreateInfo.pDynamicState = &dynamicStateCreateInfo;
 	pipelineCreateInfo.layout = pipelineLayout;
-	pipelineCreateInfo.renderPass = renderer.window.renderPass;
+	pipelineCreateInfo.renderPass = renderPass;
 	pipelineCreateInfo.subpass = 0;
 	pipelineCreateInfo.basePipelineHandle = nullptr;
 	pipelineCreateInfo.basePipelineIndex = 0;
 
-	result = vkCreateGraphicsPipelines(renderer.window.device, VK_NULL_HANDLE,
-		1, &pipelineCreateInfo, nullptr, &pipeline);
+	result = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1,
+		&pipelineCreateInfo, nullptr, &pipeline);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to create pipeline.");
 	}
 }
 
-void VulkanPerMesh::record(VkCommandBuffer cmdBuffer) {
+void VulkanPerMesh::record(VkCommandBuffer cmdBuffer, VkViewport* viewport,
+	VkRect2D* scissor) {
 	vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-	VkViewport viewport = { 0, 0, (float) renderer.window.width,
-		(float) renderer.window.height, 0, 1 };
-	vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
 
-	VkRect2D scissor = { 0, 0, renderer.window.width, renderer.window.height };
-	vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
+	if (viewport) {
+		vkCmdSetViewport(cmdBuffer, 0, 1, viewport);
+	}
+
+	if (scissor) {
+		vkCmdSetScissor(cmdBuffer, 0, 1, scissor);
+	}
 
 	VkDeviceSize offsets = {};
 	vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &buffers[0].buffer, &offsets);

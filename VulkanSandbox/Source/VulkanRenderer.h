@@ -3,6 +3,7 @@
 
 #include "VulkanWindow.h"
 #include "VulkanPerMesh.h"
+#include "VulkanShaderProgram.h"
 #include <Engine/Renderer.h>
 #include <unordered_map>
 #include <memory>
@@ -18,8 +19,7 @@ public:
 //private:
 	VulkanWindow& window;
 
-	VkShaderModule vertexShaderModule;
-	VkShaderModule fragmentShaderModule;
+	VulkanShaderProgram program;
 
 	std::unordered_map<const Engine::Mesh*, std::shared_ptr<VulkanPerMesh>>
 	meshCache;

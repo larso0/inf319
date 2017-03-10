@@ -14,25 +14,28 @@ public:
 	~VulkanWindow();
 
 	void resize(uint32_t w, uint32_t h) override {
-		width = w;
-		height = h;
-	}
-
-	uint32_t getWidth() const override {
-		return width;
-	}
-
-	uint32_t getHeight() const override {
-		return height;
+		viewport.width = w;
+		viewport.height = h;
+		scissor.extent.width = w;
+		scissor.extent.height = h;
 	}
 
 	Engine::Renderer& getRenderer() override;
+
+	virtual uint32_t getWidth() const override {
+		return viewport.width;
+	}
+
+	virtual uint32_t getHeight() const override {
+		return viewport.height;
+	}
 
 //private:
 	VulkanContext& context;
 	GLFWwindow* handle;
 	VkSurfaceKHR surface;
-	uint32_t width, height;
+	VkViewport viewport;
+	VkRect2D scissor;
 	VkPhysicalDevice physicalDevice;
 	VkDevice device;
 	uint32_t presentQueueIndex;

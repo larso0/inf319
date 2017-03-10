@@ -40,19 +40,16 @@ static void createShaderModule(const string& filename, VkShaderModule* dst,
 }
 
 VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
-	window(window),
-	vertexShaderModule(VK_NULL_HANDLE),
-	fragmentShaderModule(VK_NULL_HANDLE)
+	window(window)
 {
-	createShaderModule("Shaders/Simple.vert.spv", &vertexShaderModule,
-		window.device);
-	createShaderModule("Shaders/Simple.frag.spv", &fragmentShaderModule,
-		window.device);
+	vector<char> vertexShaderCode = readFile("Shaders/Simple.vert.spv");
+	vector<char> fragmentShaderCode = readFile("Shaders/Simple.frag.spv");
+	program.setDevice(window.device);
+	program.addShaderStage(vertexShaderCode, VK_SHADER_STAGE_VERTEX_BIT);
+	program.addShaderStage(fragmentShaderCode, VK_SHADER_STAGE_FRAGMENT_BIT);
 }
 
 VulkanRenderer::~VulkanRenderer() {
-	vkDestroyShaderModule(window.device, fragmentShaderModule, nullptr);
-	vkDestroyShaderModule(window.device, vertexShaderModule, nullptr);
 }
 
 void VulkanRenderer::render(const Engine::Camera& camera,
@@ -101,7 +98,7 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 	renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	renderPassBeginInfo.renderPass = window.renderPass;
 	renderPassBeginInfo.framebuffer = window.framebuffers[nextImageIdx];
-	renderPassBeginInfo.renderArea = {0, 0, window.width, window.height};
+	renderPassBeginInfo.renderArea = {0, 0, window.getWidth(), window.getHeight()};
 	renderPassBeginInfo.clearValueCount = 2;
 	renderPassBeginInfo.pClearValues = clearValue;
 	vkCmdBeginRenderPass(window.presentCommandBuffer, &renderPassBeginInfo,
@@ -111,10 +108,14 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 		const Mesh* mesh = e.getMesh();
 		auto result = meshCache.find(mesh);
 		if (result == meshCache.end()) {
-			meshCache[mesh] = make_shared<VulkanPerMesh>(*this, mesh);
+			shared_ptr<VulkanPerMesh> perMesh = make_shared<VulkanPerMesh>();
+			perMesh->init(program, mesh, window.memoryProperties,
+				&window.viewport, &window.scissor, window.renderPass);
+			meshCache[mesh] = perMesh;
 		}
 
-		meshCache[mesh]->record(window.presentCommandBuffer);
+		meshCache[mesh]->record(window.presentCommandBuffer, &window.viewport,
+			&window.scissor);
 	}
 
 	vkCmdEndRenderPass(window.presentCommandBuffer);
