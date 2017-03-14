@@ -20,9 +20,24 @@ private:
 	VulkanWindow& window;
 
 	VulkanShaderProgram program;
+	VulkanBuffer uniformBuffer;
+	VkDescriptorPool descriptorPool;
+	VkDescriptorSetLayout descriptorSetLayout;
+	VkPipelineLayout pipelineLayout;
+	VkDescriptorSet descriptorSet;
+
+	struct Matrices {
+		glm::mat4 mvp;
+	};
 
 	std::unordered_map<const Engine::Mesh*, std::shared_ptr<VulkanPerMesh>>
 	meshCache;
+
+	void createDescriptorPool();
+	void createDescriptorSetLayout();
+	void createPipelineLayout();
+	void allocateDescriptorSet();
+	void setupDescriptors();
 };
 
 #endif

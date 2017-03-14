@@ -25,16 +25,29 @@ static vector<char> readFile(const string& filename) {
 }
 
 VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
-	window(window)
+	window(window),
+	descriptorPool(VK_NULL_HANDLE)
 {
 	vector<char> vertexShaderCode = readFile("Shaders/Simple.vert.spv");
 	vector<char> fragmentShaderCode = readFile("Shaders/Simple.frag.spv");
 	program.setDevice(window.device);
 	program.addShaderStage(vertexShaderCode, VK_SHADER_STAGE_VERTEX_BIT);
 	program.addShaderStage(fragmentShaderCode, VK_SHADER_STAGE_FRAGMENT_BIT);
+	uniformBuffer = createBuffer(window.device, window.memoryProperties,
+		sizeof(Matrices), nullptr, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+	createDescriptorPool();
+	createDescriptorSetLayout();
+	createPipelineLayout();
+	allocateDescriptorSet();
+	setupDescriptors();
 }
 
 VulkanRenderer::~VulkanRenderer() {
+	vkDestroyPipelineLayout(window.device, pipelineLayout, nullptr);
+	vkDestroyDescriptorSetLayout(window.device, descriptorSetLayout, nullptr);
+	vkDestroyDescriptorPool(window.device, descriptorPool, nullptr);
+	vkFreeMemory(window.device, uniformBuffer.memory, nullptr);
+	vkDestroyBuffer(window.device, uniformBuffer.buffer, nullptr);
 }
 
 void VulkanRenderer::render(const Engine::Camera& camera,
@@ -90,17 +103,31 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 		VK_SUBPASS_CONTENTS_INLINE);
 
 	for (const Entity& e : entities) {
+		Matrices m;
+		m.mvp = camera.getProjectionMatrix() * camera.getViewMatrix()
+			* e.getNode()->getWorldMatrix() * e.getScaleMatrix();
+
+		void* mapped;
+		VkResult result = vkMapMemory(window.device, uniformBuffer.memory, 0,
+			VK_WHOLE_SIZE, 0, &mapped);
+		if (result != VK_SUCCESS) {
+			throw runtime_error("Failed to map uniform buffer memory.");
+		}
+		memcpy(mapped, &m, sizeof(Matrices));
+		vkUnmapMemory(window.device, uniformBuffer.memory);
+
 		const Mesh* mesh = e.getMesh();
-		auto result = meshCache.find(mesh);
-		if (result == meshCache.end()) {
+		auto found = meshCache.find(mesh);
+		if (found == meshCache.end()) {
 			shared_ptr<VulkanPerMesh> perMesh = make_shared<VulkanPerMesh>();
 			perMesh->init(program, mesh, window.memoryProperties,
-				&window.viewport, &window.scissor, window.renderPass);
+				&window.viewport, &window.scissor, window.renderPass,
+				pipelineLayout);
 			meshCache[mesh] = perMesh;
 		}
 
 		meshCache[mesh]->record(window.presentCommandBuffer, &window.viewport,
-			&window.scissor);
+			&window.scissor, pipelineLayout, descriptorSet);
 	}
 
 	vkCmdEndRenderPass(window.presentCommandBuffer);
@@ -156,4 +183,91 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 
 	vkDestroySemaphore(window.device, presentCompleteSemaphore, nullptr);
 	vkDestroySemaphore(window.device, renderingCompleteSemaphore, nullptr);
+}
+
+void VulkanRenderer::createDescriptorPool() {
+	VkDescriptorPoolSize poolSize = {};
+	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSize.descriptorCount = 1;
+
+	VkDescriptorPoolCreateInfo poolInfo = {};
+	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	poolInfo.poolSizeCount = 1;
+	poolInfo.pPoolSizes = &poolSize;
+	poolInfo.maxSets = 1;
+
+	VkResult result = vkCreateDescriptorPool(window.device, &poolInfo, nullptr,
+		&descriptorPool);
+	if (result != VK_SUCCESS) {
+		throw runtime_error("Failed to create descriptor pool.");
+	}
+}
+
+void VulkanRenderer::createDescriptorSetLayout() {
+    VkDescriptorSetLayoutBinding uboLayoutBinding = {};
+    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    uboLayoutBinding.pImmutableSamplers = nullptr;
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = 1;
+    layoutInfo.pBindings = &uboLayoutBinding;
+
+	VkResult result = vkCreateDescriptorSetLayout(window.device, &layoutInfo,
+		nullptr, &descriptorSetLayout);
+    if (result != VK_SUCCESS) {
+    	throw runtime_error("Failed to create descriptor set layout.");
+    }
+}
+
+void VulkanRenderer::createPipelineLayout() {
+	VkPipelineLayoutCreateInfo layoutCreateInfo = {};
+	layoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	layoutCreateInfo.setLayoutCount = 1;
+	layoutCreateInfo.pSetLayouts = &descriptorSetLayout;
+	layoutCreateInfo.pushConstantRangeCount = 0;
+	layoutCreateInfo.pPushConstantRanges = nullptr;
+
+	VkResult result = vkCreatePipelineLayout(window.device, &layoutCreateInfo,
+		nullptr, &pipelineLayout);
+	if (result != VK_SUCCESS) {
+		throw runtime_error("Failed to create pipeline layout.");
+	}
+}
+
+void VulkanRenderer::allocateDescriptorSet() {
+	VkDescriptorSetAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo.descriptorPool = descriptorPool;
+	allocInfo.descriptorSetCount = 1;
+	allocInfo.pSetLayouts = &descriptorSetLayout;
+
+	VkResult result = vkAllocateDescriptorSets(window.device, &allocInfo,
+		&descriptorSet);
+	if (result != VK_SUCCESS) {
+		throw runtime_error("Failed to allocate description set.");
+	}
+}
+
+void VulkanRenderer::setupDescriptors() {
+	VkDescriptorBufferInfo bufferInfo = {};
+	bufferInfo.buffer = uniformBuffer.buffer;
+	bufferInfo.offset = 0;
+	bufferInfo.range = sizeof(Matrices);
+
+	VkWriteDescriptorSet descriptorWrite = {};
+	descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrite.dstSet = descriptorSet;
+	descriptorWrite.dstBinding = 0;
+	descriptorWrite.dstArrayElement = 0;
+	descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	descriptorWrite.descriptorCount = 1;
+	descriptorWrite.pBufferInfo = &bufferInfo;
+	descriptorWrite.pImageInfo = nullptr;
+	descriptorWrite.pTexelBufferView = nullptr;
+
+	vkUpdateDescriptorSets(window.device, 1, &descriptorWrite, 0, nullptr);
 }

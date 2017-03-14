@@ -5,6 +5,7 @@
 #include <Engine/Mesh.h>
 #include <vulkan/vulkan.h>
 #include "VulkanShaderProgram.h"
+#include "VulkanBuffers.h"
 
 class VulkanPerMesh {
 public:
@@ -15,21 +16,16 @@ public:
 		const Engine::Mesh* mesh,
 		const VkPhysicalDeviceMemoryProperties& memoryProperties,
 		VkViewport* viewport, VkRect2D* scissor,
-		VkRenderPass renderPass);
+		VkRenderPass renderPass, VkPipelineLayout pipelineLayout);
 	void record(VkCommandBuffer cmdBuffer, VkViewport* viewport,
-		VkRect2D* scissor);
+		VkRect2D* scissor, VkPipelineLayout pipelineLayout,
+		VkDescriptorSet descriptorSet);
 
 private:
 	VkDevice device;
 
-	struct PerBuffer {
-		VkBuffer buffer;
-		VkDeviceMemory memory;
-	};
-
-	std::vector<PerBuffer> buffers;
+	std::vector<VulkanBuffer> buffers;
 	VkPrimitiveTopology topology;
-	VkPipelineLayout pipelineLayout;
 	VkPipeline pipeline;
 	bool indexed;
 	uint32_t indexCount;
@@ -38,8 +34,8 @@ private:
 		const VkPhysicalDeviceMemoryProperties& memoryProperties);
 	void createPipeline(
 		const std::vector<VkPipelineShaderStageCreateInfo>& stages,
-		VkViewport* viewport, VkRect2D* scissor,
-		VkRenderPass renderPass);
+		VkViewport* viewport, VkRect2D* scissor, VkRenderPass renderPass,
+		VkPipelineLayout pipelineLayout);
 };
 
 #endif

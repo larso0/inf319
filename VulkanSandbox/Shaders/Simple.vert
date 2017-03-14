@@ -7,8 +7,12 @@ out gl_PerVertex {
 
 layout (location = 0) in vec3 vertexPosition;
 
+layout (location = 0) uniform Matrices {
+	mat4 mvp;
+} matrices;
+
 void main() {
-    gl_Position = vec4(vertexPosition, 1.0);
+    gl_Position = matrices.mvp * vec4(vertexPosition, 1.0);
     gl_Position.z = (gl_Position.z + gl_Position.w) / 2.0;
     gl_Position.y = -gl_Position.y;
 }
