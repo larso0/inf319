@@ -28,6 +28,7 @@ private:
 
 	struct Matrices {
 		glm::mat4 mvp;
+		glm::mat4 normal;
 	};
 
 	std::unordered_map<const Engine::Mesh*, std::shared_ptr<VulkanPerMesh>>

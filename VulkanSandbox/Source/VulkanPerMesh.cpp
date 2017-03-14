@@ -82,11 +82,18 @@ void VulkanPerMesh::createPipeline(
 	vertexBindingDescription.stride = Vertex::Stride;
 	vertexBindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-	VkVertexInputAttributeDescription vertexAttributeDescritpion = {};
-	vertexAttributeDescritpion.location = 0;
-	vertexAttributeDescritpion.binding = 0;
-	vertexAttributeDescritpion.format = VK_FORMAT_R32G32B32_SFLOAT;
-	vertexAttributeDescritpion.offset = 0;
+	VkVertexInputAttributeDescription vertexAttributeDescritpions[2];
+	vertexAttributeDescritpions[0] = {};
+	vertexAttributeDescritpions[0].location = 0;
+	vertexAttributeDescritpions[0].binding = 0;
+	vertexAttributeDescritpions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+	vertexAttributeDescritpions[0].offset = Vertex::PositionOffset;
+
+	vertexAttributeDescritpions[1] = {};
+	vertexAttributeDescritpions[1].location = 1;
+	vertexAttributeDescritpions[1].binding = 0;
+	vertexAttributeDescritpions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+	vertexAttributeDescritpions[1].offset = Vertex::NormalOffset;
 
 	VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
 	vertexInputStateCreateInfo.sType =
@@ -94,9 +101,9 @@ void VulkanPerMesh::createPipeline(
 	vertexInputStateCreateInfo.vertexBindingDescriptionCount = 1;
 	vertexInputStateCreateInfo.pVertexBindingDescriptions =
 		&vertexBindingDescription;
-	vertexInputStateCreateInfo.vertexAttributeDescriptionCount = 1;
+	vertexInputStateCreateInfo.vertexAttributeDescriptionCount = 2;
 	vertexInputStateCreateInfo.pVertexAttributeDescriptions =
-		&vertexAttributeDescritpion;
+		vertexAttributeDescritpions;
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo = {};
 	inputAssemblyStateCreateInfo.sType =

@@ -104,8 +104,11 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 
 	for (const Entity& e : entities) {
 		Matrices m;
+		glm::mat4 worldMatrix = e.getNode()->getWorldMatrix()
+			* e.getScaleMatrix();
 		m.mvp = camera.getProjectionMatrix() * camera.getViewMatrix()
-			* e.getNode()->getWorldMatrix() * e.getScaleMatrix();
+			* worldMatrix;
+		m.normal = glm::transpose(glm::inverse(worldMatrix));
 
 		void* mapped;
 		VkResult result = vkMapMemory(window.device, uniformBuffer.memory, 0,
