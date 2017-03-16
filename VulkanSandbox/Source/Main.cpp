@@ -49,9 +49,67 @@ int main(int argc, char** argv) {
 			100.f);
 		camera.update();
 
+		float yaw = 0.f, pitch = 0.f;
+		double time = glfwGetTime();
 		while (!glfwWindowShouldClose(window.handle)) {
 			renderer.render(camera, entities);
-			glfwWaitEvents();
+			glfwPollEvents();
+
+			if (window.mouse.hidden) {
+				glm::vec3 cameraDirection = quatTransform(
+					cameraNode.getOrientation(), glm::vec3(0.f, 0.f, -1.f));
+				glm::vec3 cameraRight = quatTransform(
+					cameraNode.getOrientation(), glm::vec3(1.f, 0.f, 0.f));
+
+				double seconds = glfwGetTime();
+				float delta = seconds - time;
+				time = seconds;
+
+				glm::vec3 movement;
+				bool moved = false;
+				bool keyW = glfwGetKey(window.handle, GLFW_KEY_W) == GLFW_PRESS;
+				bool keyA = glfwGetKey(window.handle, GLFW_KEY_A) == GLFW_PRESS;
+				bool keyS = glfwGetKey(window.handle, GLFW_KEY_S) == GLFW_PRESS;
+				bool keyD = glfwGetKey(window.handle, GLFW_KEY_D) == GLFW_PRESS;
+				bool keyQ = glfwGetKey(window.handle, GLFW_KEY_Q) == GLFW_PRESS;
+				bool keyE = glfwGetKey(window.handle, GLFW_KEY_E) == GLFW_PRESS;
+				if (keyW && !keyS) {
+					movement += cameraDirection;
+					moved = true;
+				} else if (keyS && !keyW) {
+					movement -= cameraDirection;
+					moved = true;
+				}
+				if (keyA && !keyD) {
+					movement -= cameraRight;
+					moved = true;
+				} else if (keyD && !keyA) {
+					movement += cameraRight;
+					moved = true;
+				}
+				if (keyQ && !keyE) {
+					movement -= glm::vec3(0.f, 1.f, 0.f);
+					moved = true;
+				} else if (keyE && !keyQ) {
+					movement += glm::vec3(0.f, 1.f, 0.f);
+					moved = true;
+				}
+
+				if (moved) {
+					movement = glm::normalize(movement) * delta
+						* 2.f;
+					cameraNode.translate(movement);
+				}
+
+				yaw -= window.mouse.motion.x * window.mouse.sensitivity;
+				pitch -= window.mouse.motion.y * window.mouse.sensitivity;
+				window.mouse.motion = glm::vec2();
+
+				cameraNode.setRotation(yaw, glm::vec3(0.f, 1.f, 0.f));
+				cameraNode.rotate(pitch, glm::vec3(1.f, 0.f, 0.f));
+				cameraNode.update();
+				camera.update();
+			}
 		}
 	} catch (const exception& e) {
 		cerr << e.what() << endl;

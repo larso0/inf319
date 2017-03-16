@@ -9,6 +9,10 @@
 using namespace Engine;
 using namespace std;
 
+static void glfwErrorCallback(int error, const char* description) {
+	cerr << "Error: " << description << endl;
+}
+
 VulkanContext::VulkanContext() :
 	instance(VK_NULL_HANDLE)
 #ifndef NDEBUG
@@ -20,6 +24,7 @@ VulkanContext::VulkanContext() :
 	if (!glfwInit()) {
 		throw runtime_error("Failed to initialize GLFW.");
 	}
+	glfwSetErrorCallback(glfwErrorCallback);
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
 	createInstance();

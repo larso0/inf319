@@ -4,6 +4,38 @@
 using namespace Engine;
 using namespace std;
 
+static void windowSizeCallback(GLFWwindow* window, int width, int height) {
+	VulkanWindow& vulkanWindow = *((VulkanWindow*) glfwGetWindowUserPointer(
+		window));
+	vulkanWindow.resize(width, height);
+}
+
+void keyCallback(GLFWwindow* handle, int key, int, int action, int) {
+	VulkanWindow& window = *((VulkanWindow*) glfwGetWindowUserPointer(
+		handle));
+	if (action != GLFW_RELEASE) return;
+	switch (key) {
+	case GLFW_KEY_ESCAPE:
+		glfwSetInputMode(handle, GLFW_CURSOR,
+			window.mouse.hidden ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+		window.mouse.hidden = !window.mouse.hidden;
+		break;
+	default:
+		break;
+	}
+}
+
+void mousePositionCallback(GLFWwindow* handle, double x, double y) {
+	VulkanWindow& window = *((VulkanWindow*) glfwGetWindowUserPointer(
+		handle));
+	glm::vec2 position(x, y);
+	glm::vec2 motion = position - window.mouse.position;
+	if (window.mouse.hidden) {
+		window.mouse.motion = position - window.mouse.position;
+	}
+	window.mouse.position = position;
+}
+
 VulkanWindow::VulkanWindow(VulkanContext& context) :
 	context(context),
 	handle(nullptr),
@@ -17,7 +49,8 @@ VulkanWindow::VulkanWindow(VulkanContext& context) :
 	depthImage(VK_NULL_HANDLE),
 	depthImageMemory(VK_NULL_HANDLE),
 	depthImageView(VK_NULL_HANDLE),
-	renderPass(VK_NULL_HANDLE)
+	renderPass(VK_NULL_HANDLE),
+	mouse({false, glm::vec2(), glm::vec2(), 0.002f})
 {
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 	handle = glfwCreateWindow(getWidth(), getHeight(), "VulkanSandbox",
@@ -25,6 +58,14 @@ VulkanWindow::VulkanWindow(VulkanContext& context) :
 	if (!handle) {
 		throw runtime_error("Failed to create GLFW window.");
 	}
+
+	glfwSetWindowUserPointer(handle, this);
+	glfwSetWindowSizeCallback(handle, windowSizeCallback);
+	glfwSetKeyCallback(handle, keyCallback);
+	glfwSetCursorPosCallback(handle, mousePositionCallback);
+	double x, y;
+	glfwGetCursorPos(handle, &x, &y);
+	mouse.position = glm::vec2(x, y);
 
 	VkResult result = glfwCreateWindowSurface(context.instance, handle, nullptr,
 		&surface);

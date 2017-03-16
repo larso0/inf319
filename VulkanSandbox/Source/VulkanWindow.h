@@ -3,6 +3,7 @@
 
 #include "VulkanContext.h"
 #include <Engine/Window.h>
+#include <Engine/Math.h>
 #include <vector>
 
 class VulkanRenderer;
@@ -52,6 +53,13 @@ public:
 	VkImageView depthImageView;
 	VkRenderPass renderPass;
 	std::vector<VkFramebuffer> framebuffers;
+
+	struct Mouse {
+		bool hidden;
+		glm::vec2 position;
+		glm::vec2 motion;
+		float sensitivity;
+	} mouse;
 
 	void createSwapchain();
 	void createCommandPool();
