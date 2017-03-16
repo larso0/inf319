@@ -10,7 +10,7 @@ VulkanPerMesh::VulkanPerMesh() :
 	topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST),
 	pipeline(VK_NULL_HANDLE),
 	indexed(false),
-	indexCount(0)
+	elementCount(0)
 {
 }
 
@@ -64,12 +64,14 @@ void VulkanPerMesh::createBuffers(const Mesh* mesh,
 	const IndexedMesh* indexedMesh = dynamic_cast<const IndexedMesh*>(mesh);
 	if (indexedMesh) {
 		indexed = true;
-		indexCount = (uint32_t)indexedMesh->getElementCount();
+		elementCount = (uint32_t)indexedMesh->getElementCount();
 		buffers.push_back(
 			createBuffer(device, memoryProperties,
 				indexedMesh->getIndexDataSize(),
 				(void*) indexedMesh->getIndexData(),
 				VK_BUFFER_USAGE_INDEX_BUFFER_BIT));
+	} else {
+		elementCount = (uint32_t)mesh->getElementCount();
 	}
 }
 
@@ -227,8 +229,8 @@ void VulkanPerMesh::record(VkCommandBuffer cmdBuffer) {
 
 	if (indexed) {
 		vkCmdBindIndexBuffer(cmdBuffer, buffers[1].buffer, 0, VK_INDEX_TYPE_UINT32);
-		vkCmdDrawIndexed(cmdBuffer, indexCount, 1, 0, 0, 0);
+		vkCmdDrawIndexed(cmdBuffer, elementCount, 1, 0, 0, 0);
 	} else {
-		vkCmdDraw(cmdBuffer, 3, 1, 0, 0);
+		vkCmdDraw(cmdBuffer, elementCount, 1, 0, 0);
 	}
 }

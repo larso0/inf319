@@ -30,7 +30,7 @@ private:
 	VkPrimitiveTopology topology;
 	VkPipeline pipeline;
 	bool indexed;
-	uint32_t indexCount;
+	uint32_t elementCount;
 
 	void createBuffers(const Engine::Mesh* mesh,
 		const VkPhysicalDeviceMemoryProperties& memoryProperties);
