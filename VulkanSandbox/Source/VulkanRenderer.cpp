@@ -34,7 +34,7 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 	program.addShaderStage(vertexShaderCode, VK_SHADER_STAGE_VERTEX_BIT);
 	program.addShaderStage(fragmentShaderCode, VK_SHADER_STAGE_FRAGMENT_BIT);
 	uniformBuffer = createBuffer(window.device, window.memoryProperties,
-		sizeof(Matrices), nullptr, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+		sizeof(Matrices) * 512, nullptr, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 	createDescriptorPool();
 	createDescriptorSetLayout();
 	createPipelineLayout();
@@ -102,22 +102,28 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 	vkCmdBeginRenderPass(window.presentCommandBuffer, &renderPassBeginInfo,
 		VK_SUBPASS_CONTENTS_INLINE);
 
-	for (const Entity& e : entities) {
-		Matrices m;
+	void* mapped;
+	VkResult result = vkMapMemory(window.device, uniformBuffer.memory, 0,
+		VK_WHOLE_SIZE, 0, &mapped);
+	if (result != VK_SUCCESS) {
+		throw runtime_error("Failed to map uniform buffer memory.");
+	}
+
+	for (int i = 0; i < entities.size(); i++) {
+		const Entity& e = entities[i];
+
+		Matrices& m = *((Matrices*)mapped + i);
 		glm::mat4 worldMatrix = e.getNode()->getWorldMatrix()
 			* e.getScaleMatrix();
 		m.mvp = camera.getProjectionMatrix() * camera.getViewMatrix()
 			* worldMatrix;
 		m.normal = glm::transpose(glm::inverse(worldMatrix));
+	}
 
-		void* mapped;
-		VkResult result = vkMapMemory(window.device, uniformBuffer.memory, 0,
-			VK_WHOLE_SIZE, 0, &mapped);
-		if (result != VK_SUCCESS) {
-			throw runtime_error("Failed to map uniform buffer memory.");
-		}
-		memcpy(mapped, &m, sizeof(Matrices));
-		vkUnmapMemory(window.device, uniformBuffer.memory);
+	vkUnmapMemory(window.device, uniformBuffer.memory);
+
+	for (int i = 0; i < entities.size(); i++) {
+		const Entity& e = entities[i];
 
 		const Mesh* mesh = e.getMesh();
 		auto found = meshCache.find(mesh);
@@ -129,8 +135,21 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 			meshCache[mesh] = perMesh;
 		}
 
-		meshCache[mesh]->record(window.presentCommandBuffer, &window.viewport,
-			&window.scissor, pipelineLayout, descriptorSet);
+		shared_ptr<VulkanPerMesh>& perMesh = meshCache[mesh];
+
+		vkCmdBindPipeline(window.presentCommandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS, perMesh->getPipeline());
+
+		uint32_t uniformOffset = i * sizeof(Matrices);
+
+		vkCmdBindDescriptorSets(window.presentCommandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
+			&descriptorSet, 1, &uniformOffset);
+
+		vkCmdSetViewport(window.presentCommandBuffer, 0, 1, &window.viewport);
+		vkCmdSetScissor(window.presentCommandBuffer, 0, 1, &window.scissor);
+
+		perMesh->record(window.presentCommandBuffer);
 	}
 
 	vkCmdEndRenderPass(window.presentCommandBuffer);
@@ -190,7 +209,7 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 
 void VulkanRenderer::createDescriptorPool() {
 	VkDescriptorPoolSize poolSize = {};
-	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 	poolSize.descriptorCount = 1;
 
 	VkDescriptorPoolCreateInfo poolInfo = {};
@@ -209,7 +228,7 @@ void VulkanRenderer::createDescriptorPool() {
 void VulkanRenderer::createDescriptorSetLayout() {
     VkDescriptorSetLayoutBinding uboLayoutBinding = {};
     uboLayoutBinding.binding = 0;
-    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     uboLayoutBinding.descriptorCount = 1;
     uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     uboLayoutBinding.pImmutableSamplers = nullptr;
@@ -266,7 +285,7 @@ void VulkanRenderer::setupDescriptors() {
 	descriptorWrite.dstSet = descriptorSet;
 	descriptorWrite.dstBinding = 0;
 	descriptorWrite.dstArrayElement = 0;
-	descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 	descriptorWrite.descriptorCount = 1;
 	descriptorWrite.pBufferInfo = &bufferInfo;
 	descriptorWrite.pImageInfo = nullptr;

@@ -124,7 +124,7 @@ void VulkanPerMesh::createPipeline(
 	rasterizationState.depthClampEnable = VK_FALSE;
 	rasterizationState.rasterizerDiscardEnable = VK_FALSE;
 	rasterizationState.polygonMode = VK_POLYGON_MODE_FILL;
-	rasterizationState.cullMode = VK_CULL_MODE_NONE;
+	rasterizationState.cullMode = VK_CULL_MODE_BACK_BIT;
 	rasterizationState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterizationState.depthBiasEnable = VK_FALSE;
 	rasterizationState.depthBiasConstantFactor = 0;
@@ -221,21 +221,7 @@ void VulkanPerMesh::createPipeline(
 	}
 }
 
-void VulkanPerMesh::record(VkCommandBuffer cmdBuffer, VkViewport* viewport,
-	VkRect2D* scissor, VkPipelineLayout pipelineLayout,
-	VkDescriptorSet descriptorSet) {
-	vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-	vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-		pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
-
-	if (viewport) {
-		vkCmdSetViewport(cmdBuffer, 0, 1, viewport);
-	}
-
-	if (scissor) {
-		vkCmdSetScissor(cmdBuffer, 0, 1, scissor);
-	}
-
+void VulkanPerMesh::record(VkCommandBuffer cmdBuffer) {
 	VkDeviceSize offsets = {};
 	vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &buffers[0].buffer, &offsets);
 

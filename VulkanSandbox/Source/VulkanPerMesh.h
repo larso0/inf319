@@ -17,9 +17,11 @@ public:
 		const VkPhysicalDeviceMemoryProperties& memoryProperties,
 		VkViewport* viewport, VkRect2D* scissor,
 		VkRenderPass renderPass, VkPipelineLayout pipelineLayout);
-	void record(VkCommandBuffer cmdBuffer, VkViewport* viewport,
-		VkRect2D* scissor, VkPipelineLayout pipelineLayout,
-		VkDescriptorSet descriptorSet);
+	void record(VkCommandBuffer cmdBuffer);
+
+	VkPipeline getPipeline() const {
+		return pipeline;
+	}
 
 private:
 	VkDevice device;
