@@ -1,40 +1,9 @@
 #include "VulkanWindow.h"
+#include "VulkanRenderer.h"
 #include <stdexcept>
 
 using namespace Engine;
 using namespace std;
-
-static void windowSizeCallback(GLFWwindow* window, int width, int height) {
-	VulkanWindow& vulkanWindow = *((VulkanWindow*) glfwGetWindowUserPointer(
-		window));
-	vulkanWindow.resize(width, height);
-}
-
-void keyCallback(GLFWwindow* handle, int key, int, int action, int) {
-	VulkanWindow& window = *((VulkanWindow*) glfwGetWindowUserPointer(
-		handle));
-	if (action != GLFW_RELEASE) return;
-	switch (key) {
-	case GLFW_KEY_ESCAPE:
-		glfwSetInputMode(handle, GLFW_CURSOR,
-			window.mouse.hidden ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
-		window.mouse.hidden = !window.mouse.hidden;
-		break;
-	default:
-		break;
-	}
-}
-
-void mousePositionCallback(GLFWwindow* handle, double x, double y) {
-	VulkanWindow& window = *((VulkanWindow*) glfwGetWindowUserPointer(
-		handle));
-	glm::vec2 position(x, y);
-	glm::vec2 motion = position - window.mouse.position;
-	if (window.mouse.hidden) {
-		window.mouse.motion = position - window.mouse.position;
-	}
-	window.mouse.position = position;
-}
 
 VulkanWindow::VulkanWindow(VulkanContext& context) :
 	context(context),
@@ -42,16 +11,30 @@ VulkanWindow::VulkanWindow(VulkanContext& context) :
 	surface(VK_NULL_HANDLE),
 	viewport({ 0, 0, 800, 600, 0, 1 }),
 	scissor( { { 0, 0 }, { 800, 600 } }),
+	physicalDevice(VK_NULL_HANDLE),
+	device(VK_NULL_HANDLE),
+	presentQueueIndex(0),
 	colorFormat(VK_FORMAT_B8G8R8_UNORM),
 	swapchain(VK_NULL_HANDLE),
 	presentCommandPool(VK_NULL_HANDLE),
 	presentCommandBuffer(VK_NULL_HANDLE),
+	presentQueue(VK_NULL_HANDLE),
 	depthImage(VK_NULL_HANDLE),
 	depthImageMemory(VK_NULL_HANDLE),
 	depthImageView(VK_NULL_HANDLE),
 	renderPass(VK_NULL_HANDLE),
-	mouse({false, glm::vec2(), glm::vec2(), 0.002f})
+	mouse({false, glm::vec2(), glm::vec2()}),
+	open(false),
+	renderer(nullptr)
 {
+}
+
+VulkanWindow::~VulkanWindow() {
+	if (renderer) delete renderer;
+	close();
+}
+
+void VulkanWindow::init() {
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 	handle = glfwCreateWindow(getWidth(), getHeight(), "VulkanSandbox",
 		nullptr, nullptr);
@@ -67,13 +50,13 @@ VulkanWindow::VulkanWindow(VulkanContext& context) :
 	glfwGetCursorPos(handle, &x, &y);
 	mouse.position = glm::vec2(x, y);
 
-	VkResult result = glfwCreateWindowSurface(context.instance, handle, nullptr,
+	VkResult result = glfwCreateWindowSurface(context.getInstance(), handle, nullptr,
 		&surface);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to create window surface.");
 	}
 
-	context.pickDevice(surface, &physicalDevice, &device, &presentQueueIndex);
+	pickDevice();
 	createSwapchain();
 	createCommandPool();
 
@@ -94,9 +77,12 @@ VulkanWindow::VulkanWindow(VulkanContext& context) :
 	createDepthBuffer();
 	createRenderPass();
 	createFramebuffers();
+
+	open = true;
 }
 
-VulkanWindow::~VulkanWindow() {
+void VulkanWindow::close() {
+	if (!open) return;
 	for (VkFramebuffer b : framebuffers) {
 		vkDestroyFramebuffer(device, b, nullptr);
 	}
@@ -109,12 +95,80 @@ VulkanWindow::~VulkanWindow() {
 	}
 	vkDestroyCommandPool(device, presentCommandPool, nullptr);
 	vkDestroySwapchainKHR(device, swapchain, nullptr);
-	vkDestroySurfaceKHR(context.instance, surface, nullptr);
+	vkDestroyDevice(device, nullptr);
+	vkDestroySurfaceKHR(context.getInstance(), surface, nullptr);
 	glfwDestroyWindow(handle);
 }
 
 Renderer& VulkanWindow::getRenderer() {
-	throw 1;
+	if (!renderer) renderer = new VulkanRenderer(*this);
+	return *renderer;
+}
+
+static const char* validationLayer = "VK_LAYER_LUNARG_standard_validation";
+static const char* swapchainExtension = "VK_KHR_swapchain";
+
+void VulkanWindow::pickDevice() {
+	auto& physicalDevices = context.getPhysicalDevices();
+	int picked = -1;
+
+	for (int i = 0; i < physicalDevices.size(); i++) {
+		VkPhysicalDevice current = physicalDevices[i];
+
+		VkPhysicalDeviceProperties properties;
+		vkGetPhysicalDeviceProperties(current, &properties);
+
+		uint32_t n;
+		vkGetPhysicalDeviceQueueFamilyProperties(current, &n, nullptr);
+		vector<VkQueueFamilyProperties> queues(n);
+		vkGetPhysicalDeviceQueueFamilyProperties(current, &n, queues.data());
+
+		for (int j = 0; j < n; j++) {
+			VkBool32 supportsPresent;
+			vkGetPhysicalDeviceSurfaceSupportKHR(current, j, surface,
+				&supportsPresent);
+			if (supportsPresent
+				&& (queues[j].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
+				picked = i;
+				presentQueueIndex = j;
+				break;
+			}
+		}
+		if (picked >= 0) break;
+	}
+	if (picked < 0) {
+		throw runtime_error("No suitable physical device found.");
+	}
+
+	physicalDevice = physicalDevices[picked];
+
+	VkDeviceQueueCreateInfo queueCreateInfo = {};
+	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	queueCreateInfo.queueFamilyIndex = presentQueueIndex;
+	queueCreateInfo.queueCount = 1;
+	float queuePriorities[] = { 1.0f };
+	queueCreateInfo.pQueuePriorities = queuePriorities;
+
+	VkDeviceCreateInfo deviceInfo = {};
+	deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	deviceInfo.queueCreateInfoCount = 1;
+	deviceInfo.pQueueCreateInfos = &queueCreateInfo;
+#ifndef NDEBUG
+	deviceInfo.enabledLayerCount = 1;
+	deviceInfo.ppEnabledLayerNames = &validationLayer;
+#endif
+	deviceInfo.enabledExtensionCount = 1;
+	deviceInfo.ppEnabledExtensionNames = &swapchainExtension;
+
+	VkPhysicalDeviceFeatures features = { };
+	features.shaderClipDistance = VK_TRUE;
+	deviceInfo.pEnabledFeatures = &features;
+
+	VkResult result = vkCreateDevice(physicalDevice, &deviceInfo,
+		nullptr, &device);
+	if (result != VK_SUCCESS) {
+		throw runtime_error("Failed to create logical device.");
+	}
 }
 
 void VulkanWindow::createSwapchain() {
@@ -535,4 +589,39 @@ void VulkanWindow::createFramebuffers() {
 		}
 	}
 
+}
+
+void VulkanWindow::windowSizeCallback(GLFWwindow* window, int width,
+	int height) {
+	VulkanWindow& vulkanWindow = *((VulkanWindow*) glfwGetWindowUserPointer(
+		window));
+	vulkanWindow.resize(width, height);
+}
+
+void VulkanWindow::keyCallback(GLFWwindow* handle, int key, int, int action,
+	int) {
+	VulkanWindow& window = *((VulkanWindow*) glfwGetWindowUserPointer(
+		handle));
+	if (action != GLFW_RELEASE) return;
+	switch (key) {
+	case GLFW_KEY_ESCAPE:
+		glfwSetInputMode(handle, GLFW_CURSOR,
+			window.mouse.hidden ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+		window.mouse.hidden = !window.mouse.hidden;
+		break;
+	default:
+		break;
+	}
+}
+
+void VulkanWindow::mousePositionCallback(GLFWwindow* handle, double x,
+	double y) {
+	VulkanWindow& window = *((VulkanWindow*) glfwGetWindowUserPointer(
+		handle));
+	glm::vec2 position(x, y);
+	glm::vec2 motion = position - window.mouse.position;
+	if (window.mouse.hidden) {
+		window.mouse.motion = position - window.mouse.position;
+	}
+	window.mouse.position = position;
 }

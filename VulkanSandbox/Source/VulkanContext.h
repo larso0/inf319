@@ -5,17 +5,22 @@
 #include <Engine/Context.h>
 #include <vector>
 
-class VulkanWindow;
-
 class VulkanContext : public Engine::Context {
-	friend class VulkanWindow;
 public:
 	VulkanContext();
 	~VulkanContext();
 
-	Engine::Window* createWindow(int w, int h, int flags) override;
+	Engine::Window& createWindow(int w, int h, int flags) override;
 
-//private:
+	VkInstance getInstance() const {
+		return instance;
+	}
+
+	const std::vector<VkPhysicalDevice>& getPhysicalDevices() const {
+		return physicalDevices;
+	}
+
+private:
 	VkInstance instance;
 #ifndef NDEBUG
 	VkDebugReportCallbackEXT debugCallback;
@@ -28,9 +33,7 @@ public:
 	void createInstance();
 
 	std::vector<VkPhysicalDevice> physicalDevices;
-	std::vector<VkDevice> logicalDevices;
-	void pickDevice(VkSurfaceKHR surface, VkPhysicalDevice* dstPhysicalDevice,
-		VkDevice* dstDevice, uint32_t* dstPresentI);
+	std::vector<Engine::Window*> windows;
 };
 
 #endif

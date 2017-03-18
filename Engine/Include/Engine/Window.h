@@ -9,6 +9,8 @@ namespace Engine {
 	public:
 		virtual ~Window() {}
 
+		virtual void init() = 0;
+		virtual void close() = 0;
 		virtual void resize(uint32_t w, uint32_t h) = 0;
 		virtual uint32_t getWidth() const = 0;
 		virtual uint32_t getHeight() const = 0;

@@ -14,11 +14,32 @@ public:
 	VulkanWindow(VulkanContext& context);
 	~VulkanWindow();
 
+	void init() override;
+	void close() override;
+
 	void resize(uint32_t w, uint32_t h) override {
 		viewport.width = w;
 		viewport.height = h;
 		scissor.extent.width = w;
 		scissor.extent.height = h;
+	}
+
+	bool isCursorHidden() const {
+		return mouse.hidden;
+	}
+
+	bool shouldClose() const {
+		return glfwWindowShouldClose(handle);
+	}
+
+	bool getKey(int key) const {
+		return glfwGetKey(handle, key);
+	}
+
+	glm::vec2 mouseMotion() {
+		glm::vec2 motion = mouse.motion;
+		mouse.motion = glm::vec2();
+		return motion;
 	}
 
 	Engine::Renderer& getRenderer() override;
@@ -31,7 +52,7 @@ public:
 		return viewport.height;
 	}
 
-//private:
+private:
 	VulkanContext& context;
 	GLFWwindow* handle;
 	VkSurfaceKHR surface;
@@ -58,15 +79,23 @@ public:
 		bool hidden;
 		glm::vec2 position;
 		glm::vec2 motion;
-		float sensitivity;
 	} mouse;
 
+	bool open;
+
+	VulkanRenderer* renderer;
+
+	void pickDevice();
 	void createSwapchain();
 	void createCommandPool();
 	void setupSwapchainImages();
 	void createDepthBuffer();
 	void createRenderPass();
 	void createFramebuffers();
+
+	static void windowSizeCallback(GLFWwindow* window, int width, int height);
+	static void keyCallback(GLFWwindow* handle, int key, int, int action, int);
+	static void mousePositionCallback(GLFWwindow* handle, double x, double y);
 };
 
 #endif

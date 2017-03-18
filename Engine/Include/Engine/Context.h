@@ -8,7 +8,7 @@ namespace Engine {
 	public:
 		virtual ~Context() {}
 
-		virtual Window* createWindow(int w, int h, int flags) = 0;
+		virtual Window& createWindow(int w, int h, int flags) = 0;
 	};
 }
 

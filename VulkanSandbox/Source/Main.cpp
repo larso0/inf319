@@ -19,8 +19,8 @@ using namespace Engine;
 int main(int argc, char** argv) {
 	try {
 		VulkanContext vkContext;
-		VulkanWindow window(vkContext);
-		VulkanRenderer renderer(window);
+		VulkanWindow& window = (VulkanWindow&)vkContext.createWindow(1024, 768, 0);
+		VulkanRenderer& renderer = (VulkanRenderer&)window.getRenderer();
 
 		Mesh cubeMesh = generateCube();
 		IndexedMesh sphereMesh = generateSphere(5);
@@ -51,11 +51,11 @@ int main(int argc, char** argv) {
 
 		float yaw = 0.f, pitch = 0.f;
 		double time = glfwGetTime();
-		while (!glfwWindowShouldClose(window.handle)) {
+		while (!window.shouldClose()) {
 			renderer.render(camera, entities);
 			glfwPollEvents();
 
-			if (window.mouse.hidden) {
+			if (window.isCursorHidden()) {
 				glm::vec3 cameraDirection = quatTransform(
 					cameraNode.getOrientation(), glm::vec3(0.f, 0.f, -1.f));
 				glm::vec3 cameraRight = quatTransform(
@@ -67,12 +67,12 @@ int main(int argc, char** argv) {
 
 				glm::vec3 movement;
 				bool moved = false;
-				bool keyW = glfwGetKey(window.handle, GLFW_KEY_W) == GLFW_PRESS;
-				bool keyA = glfwGetKey(window.handle, GLFW_KEY_A) == GLFW_PRESS;
-				bool keyS = glfwGetKey(window.handle, GLFW_KEY_S) == GLFW_PRESS;
-				bool keyD = glfwGetKey(window.handle, GLFW_KEY_D) == GLFW_PRESS;
-				bool keyQ = glfwGetKey(window.handle, GLFW_KEY_Q) == GLFW_PRESS;
-				bool keyE = glfwGetKey(window.handle, GLFW_KEY_E) == GLFW_PRESS;
+				bool keyW = window.getKey(GLFW_KEY_W) == GLFW_PRESS;
+				bool keyA = window.getKey(GLFW_KEY_A) == GLFW_PRESS;
+				bool keyS = window.getKey(GLFW_KEY_S) == GLFW_PRESS;
+				bool keyD = window.getKey(GLFW_KEY_D) == GLFW_PRESS;
+				bool keyQ = window.getKey(GLFW_KEY_Q) == GLFW_PRESS;
+				bool keyE = window.getKey(GLFW_KEY_E) == GLFW_PRESS;
 				if (keyW && !keyS) {
 					movement += cameraDirection;
 					moved = true;
@@ -101,9 +101,9 @@ int main(int argc, char** argv) {
 					cameraNode.translate(movement);
 				}
 
-				yaw -= window.mouse.motion.x * window.mouse.sensitivity;
-				pitch -= window.mouse.motion.y * window.mouse.sensitivity;
-				window.mouse.motion = glm::vec2();
+				glm::vec2 motion = window.mouseMotion();
+				yaw -= motion.x * 0.002f;
+				pitch -= motion.y * 0.002f;
 
 				cameraNode.setRotation(yaw, glm::vec3(0.f, 1.f, 0.f));
 				cameraNode.rotate(pitch, glm::vec3(1.f, 0.f, 0.f));

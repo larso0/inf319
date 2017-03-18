@@ -1,4 +1,5 @@
 #include "VulkanContext.h"
+#include "VulkanWindow.h"
 #include <stdexcept>
 #include <vector>
 #include <cstring>
@@ -36,15 +37,12 @@ VulkanContext::VulkanContext() :
 	uint32_t n = 0;
 	vkEnumeratePhysicalDevices(instance, &n, nullptr);
 	physicalDevices.resize(n);
-	logicalDevices.resize(n, VK_NULL_HANDLE);
 	vkEnumeratePhysicalDevices(instance, &n, physicalDevices.data());
 }
 
 VulkanContext::~VulkanContext() {
-	for (VkDevice d : logicalDevices) {
-		if (d != VK_NULL_HANDLE) {
-			vkDestroyDevice(d, nullptr);
-		}
+	for (Window* window : windows) {
+		delete window;
 	}
 #ifndef NDEBUG
 	vkDestroyDebugReportCallback(instance, debugCallback, nullptr);
@@ -170,76 +168,10 @@ void VulkanContext::createInstance() {
 	}
 }
 
-Window* VulkanContext::createWindow(int, int, int) {
-	return nullptr;
-}
-
-static const char* swapchainExtension = "VK_KHR_swapchain";
-
-void VulkanContext::pickDevice(VkSurfaceKHR surface, VkPhysicalDevice* dstPhysicalDevice,
-	VkDevice* dstDevice, uint32_t* dstPresentI) {
-	int picked = -1;
-	uint32_t presentQueueIndex;
-
-	for (int i = 0; i < physicalDevices.size(); i++) {
-		VkPhysicalDevice current = physicalDevices[i];
-
-		VkPhysicalDeviceProperties properties;
-		vkGetPhysicalDeviceProperties(current, &properties);
-
-		uint32_t n;
-		vkGetPhysicalDeviceQueueFamilyProperties(current, &n, nullptr);
-		vector<VkQueueFamilyProperties> queues(n);
-		vkGetPhysicalDeviceQueueFamilyProperties(current, &n, queues.data());
-
-		for (int j = 0; j < n; j++) {
-			VkBool32 supportsPresent;
-			vkGetPhysicalDeviceSurfaceSupportKHR(current, j, surface,
-				&supportsPresent);
-			if (supportsPresent
-				&& (queues[j].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
-				picked = i;
-				presentQueueIndex = j;
-				break;
-			}
-		}
-		if (picked >= 0) break;
-	}
-	if (picked < 0) {
-		throw runtime_error("No suitable physical device found.");
-	}
-
-	if (logicalDevices[picked] == VK_NULL_HANDLE) {
-		VkDeviceQueueCreateInfo queueCreateInfo = {};
-		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-		queueCreateInfo.queueFamilyIndex = presentQueueIndex;
-		queueCreateInfo.queueCount = 1;
-		float queuePriorities[] = { 1.0f };
-		queueCreateInfo.pQueuePriorities = queuePriorities;
-
-		VkDeviceCreateInfo deviceInfo = {};
-		deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-		deviceInfo.queueCreateInfoCount = 1;
-		deviceInfo.pQueueCreateInfos = &queueCreateInfo;
-#ifndef NDEBUG
-		deviceInfo.enabledLayerCount = 1;
-		deviceInfo.ppEnabledLayerNames = &validationLayer;
-#endif
-		deviceInfo.enabledExtensionCount = 1;
-		deviceInfo.ppEnabledExtensionNames = &swapchainExtension;
-
-		VkPhysicalDeviceFeatures features = { };
-		features.shaderClipDistance = VK_TRUE;
-		deviceInfo.pEnabledFeatures = &features;
-
-		VkResult result = vkCreateDevice(physicalDevices[picked], &deviceInfo,
-			nullptr, logicalDevices.data() + picked);
-		if (result != VK_SUCCESS) {
-			throw runtime_error("Failed to create logical device.");
-		}
-	}
-
-	*dstPhysicalDevice = physicalDevices[picked];
-	*dstDevice = logicalDevices[picked];
-	*dstPresentI = presentQueueIndex;
+Window& VulkanContext::createWindow(int w, int h, int) {
+	VulkanWindow* window = new VulkanWindow(*this);
+	windows.push_back(window);
+	window->resize(w, h);
+	window->init();
+	return *window;
 }
