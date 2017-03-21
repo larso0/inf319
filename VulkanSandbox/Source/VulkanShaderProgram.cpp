@@ -1,17 +1,13 @@
 #include "VulkanShaderProgram.h"
 #include <stdexcept>
 
-VulkanShaderProgram::VulkanShaderProgram() :
-	device(VK_NULL_HANDLE)
-{}
-
-VulkanShaderProgram::VulkanShaderProgram(VkDevice device) :
+VulkanShaderProgram::VulkanShaderProgram(const VulkanDevice& device) :
 	device(device)
 {}
 
 VulkanShaderProgram::~VulkanShaderProgram() {
 	for (VkShaderModule m : shaderModules) {
-		vkDestroyShaderModule(device, m, nullptr);
+		vkDestroyShaderModule(device.getHandle(), m, nullptr);
 	}
 }
 
@@ -24,7 +20,8 @@ void VulkanShaderProgram::addShaderStage(const std::vector<char>& spirvCode,
 	info.codeSize = spirvCode.size();
 	info.pCode = (uint32_t *)spirvCode.data();
 
-	VkResult result = vkCreateShaderModule(device, &info, nullptr, &module);
+	VkResult result = vkCreateShaderModule(device.getHandle(), &info, nullptr,
+		&module);
 	if (result != VK_SUCCESS) {
 		throw std::runtime_error("Failed to create shader module.");
 	}

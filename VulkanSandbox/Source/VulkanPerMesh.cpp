@@ -16,9 +16,8 @@ VulkanPerMesh::VulkanPerMesh() :
 
 VulkanPerMesh::~VulkanPerMesh() {
 	vkDestroyPipeline(device, pipeline, nullptr);
-	for (VulkanBuffer& b : buffers) {
-		vkFreeMemory(device, b.memory, nullptr);
-		vkDestroyBuffer(device, b.buffer, nullptr);
+	for (VulkanBuffer* b : buffers) {
+		delete b;
 	}
 }
 
@@ -27,8 +26,8 @@ void VulkanPerMesh::init(const VulkanShaderProgram& shaderProgram,
 	const VkPhysicalDeviceMemoryProperties& memoryProperties,
 	VkViewport* viewport, VkRect2D* scissor, VkRenderPass renderPass,
 	VkPipelineLayout pipelineLayout) {
-	device = shaderProgram.getDevice();
-	createBuffers(mesh, memoryProperties);
+	device = shaderProgram.getDevice().getHandle();
+	createBuffers(shaderProgram.getDevice(), mesh);
 
 	switch (mesh->getTopology()) {
 	case Mesh::Topology::Points:
@@ -55,21 +54,32 @@ void VulkanPerMesh::init(const VulkanShaderProgram& shaderProgram,
 		renderPass, pipelineLayout);
 }
 
-void VulkanPerMesh::createBuffers(const Mesh* mesh,
-	const VkPhysicalDeviceMemoryProperties& memoryProperties) {
-	buffers.push_back(
-		createBuffer(device, memoryProperties, mesh->getVertexDataSize(),
-			(void*) mesh->getVertexData(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT));
+void VulkanPerMesh::createBuffers(const VulkanDevice& device, const Mesh* mesh) {
+
+	VulkanBuffer* vertexBuffer = new VulkanBuffer(device,
+		mesh->getVertexDataSize(),
+		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+			| VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+	vertexBuffer->transfer(0, VK_WHOLE_SIZE, (void*)mesh->getVertexData());
+	buffers.push_back(vertexBuffer);
 
 	const IndexedMesh* indexedMesh = dynamic_cast<const IndexedMesh*>(mesh);
 	if (indexedMesh) {
 		indexed = true;
 		elementCount = (uint32_t)indexedMesh->getElementCount();
-		buffers.push_back(
-			createBuffer(device, memoryProperties,
-				indexedMesh->getIndexDataSize(),
-				(void*) indexedMesh->getIndexData(),
-				VK_BUFFER_USAGE_INDEX_BUFFER_BIT));
+
+		VulkanBuffer* indexBuffer = new VulkanBuffer(device,
+			indexedMesh->getIndexDataSize(),
+			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+				| VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+				| VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+		vertexBuffer->transfer(0, VK_WHOLE_SIZE,
+			(void*) indexedMesh->getIndexData());
+		buffers.push_back(indexBuffer);
 	} else {
 		elementCount = (uint32_t)mesh->getElementCount();
 	}
@@ -225,10 +235,12 @@ void VulkanPerMesh::createPipeline(
 
 void VulkanPerMesh::record(VkCommandBuffer cmdBuffer) {
 	VkDeviceSize offsets = {};
-	vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &buffers[0].buffer, &offsets);
+	VkBuffer bufferHandle = buffers[0]->getHandle();
+	vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &bufferHandle, &offsets);
 
 	if (indexed) {
-		vkCmdBindIndexBuffer(cmdBuffer, buffers[1].buffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindIndexBuffer(cmdBuffer, buffers[1]->getHandle(), 0,
+			VK_INDEX_TYPE_UINT32);
 		vkCmdDrawIndexed(cmdBuffer, elementCount, 1, 0, 0, 0);
 	} else {
 		vkCmdDraw(cmdBuffer, elementCount, 1, 0, 0);

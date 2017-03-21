@@ -11,14 +11,10 @@ VulkanWindow::VulkanWindow(VulkanContext& context) :
 	surface(VK_NULL_HANDLE),
 	viewport({ 0, 0, 800, 600, 0, 1 }),
 	scissor( { { 0, 0 }, { 800, 600 } }),
-	physicalDevice(VK_NULL_HANDLE),
-	device(VK_NULL_HANDLE),
-	presentQueueIndex(0),
+	device(nullptr),
 	colorFormat(VK_FORMAT_B8G8R8_UNORM),
 	swapchain(VK_NULL_HANDLE),
-	presentCommandPool(VK_NULL_HANDLE),
 	presentCommandBuffer(VK_NULL_HANDLE),
-	presentQueue(VK_NULL_HANDLE),
 	depthImage(VK_NULL_HANDLE),
 	depthImageMemory(VK_NULL_HANDLE),
 	depthImageView(VK_NULL_HANDLE),
@@ -56,24 +52,23 @@ void VulkanWindow::init() {
 		throw runtime_error("Failed to create window surface.");
 	}
 
-	pickDevice();
+	device = new VulkanDevice(context,
+		VulkanDevice::Capability::Graphics | VulkanDevice::Capability::Transfer,
+		surface);
+	device->init();
+
 	createSwapchain();
-	createCommandPool();
 
 	VkCommandBufferAllocateInfo commandBufferInfo = {};
 	commandBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	commandBufferInfo.commandPool = presentCommandPool;
+	commandBufferInfo.commandPool = device->getPresentCommandPool();
 	commandBufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	commandBufferInfo.commandBufferCount = 1;
 
-	result = vkAllocateCommandBuffers(device, &commandBufferInfo,
+	result = vkAllocateCommandBuffers(device->getHandle(), &commandBufferInfo,
 		&presentCommandBuffer);
 
-	vkGetDeviceQueue(device, presentQueueIndex, 0, &presentQueue);
-
 	setupSwapchainImages();
-
-	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
 	createDepthBuffer();
 	createRenderPass();
 	createFramebuffers();
@@ -84,18 +79,17 @@ void VulkanWindow::init() {
 void VulkanWindow::close() {
 	if (!open) return;
 	for (VkFramebuffer b : framebuffers) {
-		vkDestroyFramebuffer(device, b, nullptr);
+		vkDestroyFramebuffer(device->getHandle(), b, nullptr);
 	}
-	vkDestroyRenderPass(device, renderPass, nullptr);
-	vkFreeMemory(device, depthImageMemory, nullptr);
-	vkDestroyImageView(device, depthImageView, nullptr);
-	vkDestroyImage(device, depthImage, nullptr);
+	vkDestroyRenderPass(device->getHandle(), renderPass, nullptr);
+	vkFreeMemory(device->getHandle(), depthImageMemory, nullptr);
+	vkDestroyImageView(device->getHandle(), depthImageView, nullptr);
+	vkDestroyImage(device->getHandle(), depthImage, nullptr);
 	for (VkImageView i : presentImageViews) {
-		vkDestroyImageView(device, i, nullptr);
+		vkDestroyImageView(device->getHandle(), i, nullptr);
 	}
-	vkDestroyCommandPool(device, presentCommandPool, nullptr);
-	vkDestroySwapchainKHR(device, swapchain, nullptr);
-	vkDestroyDevice(device, nullptr);
+	vkDestroySwapchainKHR(device->getHandle(), swapchain, nullptr);
+	delete device;
 	vkDestroySurfaceKHR(context.getInstance(), surface, nullptr);
 	glfwDestroyWindow(handle);
 }
@@ -105,77 +99,11 @@ Renderer& VulkanWindow::getRenderer() {
 	return *renderer;
 }
 
-static const char* validationLayer = "VK_LAYER_LUNARG_standard_validation";
-static const char* swapchainExtension = "VK_KHR_swapchain";
-
-void VulkanWindow::pickDevice() {
-	auto& physicalDevices = context.getPhysicalDevices();
-	int picked = -1;
-
-	for (int i = 0; i < physicalDevices.size(); i++) {
-		VkPhysicalDevice current = physicalDevices[i];
-
-		VkPhysicalDeviceProperties properties;
-		vkGetPhysicalDeviceProperties(current, &properties);
-
-		uint32_t n;
-		vkGetPhysicalDeviceQueueFamilyProperties(current, &n, nullptr);
-		vector<VkQueueFamilyProperties> queues(n);
-		vkGetPhysicalDeviceQueueFamilyProperties(current, &n, queues.data());
-
-		for (int j = 0; j < n; j++) {
-			VkBool32 supportsPresent;
-			vkGetPhysicalDeviceSurfaceSupportKHR(current, j, surface,
-				&supportsPresent);
-			if (supportsPresent
-				&& (queues[j].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
-				picked = i;
-				presentQueueIndex = j;
-				break;
-			}
-		}
-		if (picked >= 0) break;
-	}
-	if (picked < 0) {
-		throw runtime_error("No suitable physical device found.");
-	}
-
-	physicalDevice = physicalDevices[picked];
-
-	VkDeviceQueueCreateInfo queueCreateInfo = {};
-	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	queueCreateInfo.queueFamilyIndex = presentQueueIndex;
-	queueCreateInfo.queueCount = 1;
-	float queuePriorities[] = { 1.0f };
-	queueCreateInfo.pQueuePriorities = queuePriorities;
-
-	VkDeviceCreateInfo deviceInfo = {};
-	deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	deviceInfo.queueCreateInfoCount = 1;
-	deviceInfo.pQueueCreateInfos = &queueCreateInfo;
-#ifndef NDEBUG
-	deviceInfo.enabledLayerCount = 1;
-	deviceInfo.ppEnabledLayerNames = &validationLayer;
-#endif
-	deviceInfo.enabledExtensionCount = 1;
-	deviceInfo.ppEnabledExtensionNames = &swapchainExtension;
-
-	VkPhysicalDeviceFeatures features = { };
-	features.shaderClipDistance = VK_TRUE;
-	deviceInfo.pEnabledFeatures = &features;
-
-	VkResult result = vkCreateDevice(physicalDevice, &deviceInfo,
-		nullptr, &device);
-	if (result != VK_SUCCESS) {
-		throw runtime_error("Failed to create logical device.");
-	}
-}
-
 void VulkanWindow::createSwapchain() {
 	uint32_t n = 0;
-	vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &n, nullptr);
+	vkGetPhysicalDeviceSurfaceFormatsKHR(device->getPhysicalDevice(), surface, &n, nullptr);
 	vector<VkSurfaceFormatKHR> surfaceFormats(n);
-	vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &n,
+	vkGetPhysicalDeviceSurfaceFormatsKHR(device->getPhysicalDevice(), surface, &n,
 		surfaceFormats.data());
 
 	if (n != 1 || surfaceFormats[0].format != VK_FORMAT_UNDEFINED) {
@@ -184,7 +112,7 @@ void VulkanWindow::createSwapchain() {
 	VkColorSpaceKHR colorSpace = surfaceFormats[0].colorSpace;
 
 	VkSurfaceCapabilitiesKHR surfaceCapabilities = {};
-	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface,
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device->getPhysicalDevice(), surface,
 		&surfaceCapabilities);
 
 	uint32_t desiredImageCount = 2;
@@ -210,10 +138,10 @@ void VulkanWindow::createSwapchain() {
 		preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
 	}
 
-	vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &n,
+	vkGetPhysicalDeviceSurfacePresentModesKHR(device->getPhysicalDevice(), surface, &n,
 		nullptr);
 	vector<VkPresentModeKHR> presentModes(n);
-	vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &n,
+	vkGetPhysicalDeviceSurfacePresentModesKHR(device->getPhysicalDevice(), surface, &n,
 		presentModes.data());
 
 	VkPresentModeKHR presentationMode = VK_PRESENT_MODE_FIFO_KHR;
@@ -239,31 +167,18 @@ void VulkanWindow::createSwapchain() {
 	swapchainCreateInfo.presentMode = presentationMode;
 	swapchainCreateInfo.clipped = true;
 
-	VkResult result = vkCreateSwapchainKHR(device, &swapchainCreateInfo,
+	VkResult result = vkCreateSwapchainKHR(device->getHandle(), &swapchainCreateInfo,
 		nullptr, &swapchain);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to create swapchain.");
 	}
 }
 
-void VulkanWindow::createCommandPool() {
-	VkCommandPoolCreateInfo commandPoolInfo = {};
-	commandPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	commandPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	commandPoolInfo.queueFamilyIndex = presentQueueIndex;
-
-	VkResult result = vkCreateCommandPool(device, &commandPoolInfo, nullptr,
-		&presentCommandPool);
-	if (result != VK_SUCCESS) {
-		throw runtime_error("Failed to create command pool.");
-	}
-}
-
 void VulkanWindow::setupSwapchainImages() {
 	uint32_t imageCount;
-	vkGetSwapchainImagesKHR(device, swapchain, &imageCount, nullptr);
+	vkGetSwapchainImagesKHR(device->getHandle(), swapchain, &imageCount, nullptr);
 	presentImages.resize(imageCount);
-	vkGetSwapchainImagesKHR(device, swapchain, &imageCount,
+	vkGetSwapchainImagesKHR(device->getHandle(), swapchain, &imageCount,
 		presentImages.data());
 
 	VkCommandBufferBeginInfo beginInfo = {};
@@ -273,7 +188,7 @@ void VulkanWindow::setupSwapchainImages() {
 	VkFenceCreateInfo fenceCreateInfo = {};
 	fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	VkFence submitFence;
-	vkCreateFence(device, &fenceCreateInfo, nullptr, &submitFence);
+	vkCreateFence(device->getHandle(), &fenceCreateInfo, nullptr, &submitFence);
 
 	vector<bool> transitioned(imageCount, false);
 	uint32_t doneCount = 0;
@@ -282,11 +197,11 @@ void VulkanWindow::setupSwapchainImages() {
 		VkSemaphore presentCompleteSemaphore;
 		VkSemaphoreCreateInfo semaphoreCreateInfo = {
 			VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, 0, 0 };
-		vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr,
+		vkCreateSemaphore(device->getHandle(), &semaphoreCreateInfo, nullptr,
 			&presentCompleteSemaphore);
 
 		uint32_t nextImageIdx;
-		vkAcquireNextImageKHR(device, swapchain, UINT64_MAX,
+		vkAcquireNextImageKHR(device->getHandle(), swapchain, UINT64_MAX,
 			presentCompleteSemaphore, VK_NULL_HANDLE, &nextImageIdx);
 
 		if (!transitioned[nextImageIdx]) {
@@ -327,12 +242,12 @@ void VulkanWindow::setupSwapchainImages() {
 			submitInfo.pCommandBuffers = &presentCommandBuffer;
 			submitInfo.signalSemaphoreCount = 0;
 			submitInfo.pSignalSemaphores = nullptr;
-			VkResult result = vkQueueSubmit(presentQueue, 1,
+			VkResult result = vkQueueSubmit(device->getPresentQueue(), 1,
 				&submitInfo, submitFence);
 
-			vkWaitForFences(device, 1, &submitFence, VK_TRUE,
+			vkWaitForFences(device->getHandle(), 1, &submitFence, VK_TRUE,
 				UINT64_MAX);
-			vkResetFences(device, 1, &submitFence);
+			vkResetFences(device->getHandle(), 1, &submitFence);
 
 			vkResetCommandBuffer(presentCommandBuffer, 0);
 
@@ -340,7 +255,7 @@ void VulkanWindow::setupSwapchainImages() {
 			doneCount++;
 		}
 
-		vkDestroySemaphore(device, presentCompleteSemaphore, nullptr);
+		vkDestroySemaphore(device->getHandle(), presentCompleteSemaphore, nullptr);
 
 		VkPresentInfoKHR presentInfo = {};
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -349,10 +264,10 @@ void VulkanWindow::setupSwapchainImages() {
 		presentInfo.swapchainCount = 1;
 		presentInfo.pSwapchains = &swapchain;
 		presentInfo.pImageIndices = &nextImageIdx;
-		vkQueuePresentKHR(presentQueue, &presentInfo);
+		vkQueuePresentKHR(device->getPresentQueue(), &presentInfo);
 	}
 
-	vkDestroyFence(device, submitFence, nullptr);
+	vkDestroyFence(device->getHandle(), submitFence, nullptr);
 
 	VkImageViewCreateInfo imageViewInfo = {};
 	imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -373,7 +288,7 @@ void VulkanWindow::setupSwapchainImages() {
 	presentImageViews.resize(imageCount);
 	for (uint32_t i = 0; i < imageCount; i++) {
 		imageViewInfo.image = presentImages[i];
-		VkResult result = vkCreateImageView(device, &imageViewInfo,
+		VkResult result = vkCreateImageView(device->getHandle(), &imageViewInfo,
 			nullptr, presentImageViews.data() + i);
 		if (result != VK_SUCCESS) {
 			throw runtime_error("Unable to create swapchain image view.");
@@ -397,14 +312,14 @@ void VulkanWindow::createDepthBuffer() {
 	imageCreateInfo.pQueueFamilyIndices = nullptr;
 	imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-	VkResult result = vkCreateImage(device, &imageCreateInfo, nullptr,
+	VkResult result = vkCreateImage(device->getHandle(), &imageCreateInfo, nullptr,
 		&depthImage);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to create depth image.");
 	}
 
 	VkMemoryRequirements memoryRequirements = {};
-	vkGetImageMemoryRequirements(device, depthImage, &memoryRequirements);
+	vkGetImageMemoryRequirements(device->getHandle(), depthImage, &memoryRequirements);
 
 	VkMemoryAllocateInfo imageAllocateInfo = {};
 	imageAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -414,7 +329,7 @@ void VulkanWindow::createDepthBuffer() {
 	VkMemoryPropertyFlags desiredMemoryFlags =
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 	for (uint32_t i = 0; i < 32; ++i) {
-		VkMemoryType memoryType = memoryProperties.memoryTypes[i];
+		VkMemoryType memoryType = device->getMemoryProperties().memoryTypes[i];
 		if (memoryTypeBits & 1) {
 			if ((memoryType.propertyFlags & desiredMemoryFlags)
 				== desiredMemoryFlags) {
@@ -425,14 +340,14 @@ void VulkanWindow::createDepthBuffer() {
 		memoryTypeBits = memoryTypeBits >> 1;
 	}
 
-	result = vkAllocateMemory(device, &imageAllocateInfo, nullptr,
+	result = vkAllocateMemory(device->getHandle(), &imageAllocateInfo, nullptr,
 		&depthImageMemory);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to allocate depth buffer.");
 	}
 
 
-	result = vkBindImageMemory(device, depthImage, depthImageMemory, 0);
+	result = vkBindImageMemory(device->getHandle(), depthImage, depthImageMemory, 0);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to bind depth buffer to image.");
 	}
@@ -468,7 +383,7 @@ void VulkanWindow::createDepthBuffer() {
 	VkFenceCreateInfo fenceCreateInfo = {};
 	fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	VkFence submitFence;
-	vkCreateFence(device, &fenceCreateInfo, nullptr, &submitFence);
+	vkCreateFence(device->getHandle(), &fenceCreateInfo, nullptr, &submitFence);
 
 	VkPipelineStageFlags waitStageMask[] = {
 		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
@@ -481,10 +396,10 @@ void VulkanWindow::createDepthBuffer() {
 	submitInfo.pCommandBuffers = &presentCommandBuffer;
 	submitInfo.signalSemaphoreCount = 0;
 	submitInfo.pSignalSemaphores = nullptr;
-	result = vkQueueSubmit(presentQueue, 1, &submitInfo, submitFence);
+	result = vkQueueSubmit(device->getPresentQueue(), 1, &submitInfo, submitFence);
 
-	vkWaitForFences(device, 1, &submitFence, VK_TRUE, UINT64_MAX);
-	vkDestroyFence(device, submitFence, nullptr);
+	vkWaitForFences(device->getHandle(), 1, &submitFence, VK_TRUE, UINT64_MAX);
+	vkDestroyFence(device->getHandle(), submitFence, nullptr);
 	vkResetCommandBuffer(presentCommandBuffer, 0);
 
 	VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -505,7 +420,7 @@ void VulkanWindow::createDepthBuffer() {
 	imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
 	imageViewCreateInfo.subresourceRange.layerCount = 1;
 
-	result = vkCreateImageView(device, &imageViewCreateInfo, nullptr,
+	result = vkCreateImageView(device->getHandle(), &imageViewCreateInfo, nullptr,
 		&depthImageView);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to create depth image view.");
@@ -557,7 +472,7 @@ void VulkanWindow::createRenderPass() {
 	renderPassCreateInfo.subpassCount = 1;
 	renderPassCreateInfo.pSubpasses = &subpass;
 
-	VkResult result = vkCreateRenderPass(device, &renderPassCreateInfo,
+	VkResult result = vkCreateRenderPass(device->getHandle(), &renderPassCreateInfo,
 		nullptr, &renderPass);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to create render pass.");
@@ -582,7 +497,7 @@ void VulkanWindow::createFramebuffers() {
 	framebuffers.resize(imageCount);
 	for (uint32_t i = 0; i < imageCount; i++) {
 		framebufferAttachments[0] = presentImageViews[i];
-		VkResult result = vkCreateFramebuffer(device, &framebufferCreateInfo,
+		VkResult result = vkCreateFramebuffer(device->getHandle(), &framebufferCreateInfo,
 			nullptr, framebuffers.data() + i);
 		if (result != VK_SUCCESS) {
 			throw runtime_error("Failed to create framebuffer.");

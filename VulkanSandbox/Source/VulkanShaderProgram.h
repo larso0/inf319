@@ -2,12 +2,12 @@
 #define VULKANSHADERPROGRAM_H
 
 #include <vulkan/vulkan.h>
+#include "VulkanDevice.h"
 #include <vector>
 
 class VulkanShaderProgram {
 public:
-	VulkanShaderProgram();
-	VulkanShaderProgram(VkDevice device);
+	VulkanShaderProgram(const VulkanDevice& device);
 	~VulkanShaderProgram();
 
 	void addShaderStage(const std::vector<char>& spirvCode,
@@ -18,16 +18,12 @@ public:
 		return shaderStages;
 	}
 
-	VkDevice getDevice() const {
+	const VulkanDevice& getDevice() const {
 		return device;
 	}
 
-	void setDevice(VkDevice device) {
-		this->device = device;
-	}
-
 private:
-	VkDevice device;
+	const VulkanDevice& device;
 	std::vector<VkShaderModule> shaderModules;
 	std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
 };

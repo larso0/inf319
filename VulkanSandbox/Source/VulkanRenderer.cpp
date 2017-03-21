@@ -26,15 +26,26 @@ static vector<char> readFile(const string& filename) {
 
 VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 	window(window),
+	program(VulkanShaderProgram(*window.device)),
 	descriptorPool(VK_NULL_HANDLE)
 {
 	vector<char> vertexShaderCode = readFile("Shaders/Simple.vert.spv");
 	vector<char> fragmentShaderCode = readFile("Shaders/Simple.frag.spv");
-	program.setDevice(window.device);
 	program.addShaderStage(vertexShaderCode, VK_SHADER_STAGE_VERTEX_BIT);
 	program.addShaderStage(fragmentShaderCode, VK_SHADER_STAGE_FRAGMENT_BIT);
-	uniformBuffer = createBuffer(window.device, window.memoryProperties,
-		sizeof(Matrices) * 512, nullptr, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+
+	uniformBufferStride = 0;
+	while (uniformBufferStride < sizeof(Matrices)) {
+		uniformBufferStride += window.device->getProperties().limits
+			.minUniformBufferOffsetAlignment;
+	}
+
+	uniformBuffer = new VulkanBuffer(*window.device, uniformBufferStride * 64,
+		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+			| VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
 	createDescriptorPool();
 	createDescriptorSetLayout();
 	createPipelineLayout();
@@ -43,11 +54,10 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 }
 
 VulkanRenderer::~VulkanRenderer() {
-	vkDestroyPipelineLayout(window.device, pipelineLayout, nullptr);
-	vkDestroyDescriptorSetLayout(window.device, descriptorSetLayout, nullptr);
-	vkDestroyDescriptorPool(window.device, descriptorPool, nullptr);
-	vkFreeMemory(window.device, uniformBuffer.memory, nullptr);
-	vkDestroyBuffer(window.device, uniformBuffer.buffer, nullptr);
+	vkDestroyPipelineLayout(window.device->getHandle(), pipelineLayout, nullptr);
+	vkDestroyDescriptorSetLayout(window.device->getHandle(), descriptorSetLayout, nullptr);
+	vkDestroyDescriptorPool(window.device->getHandle(), descriptorPool, nullptr);
+	delete uniformBuffer;
 }
 
 void VulkanRenderer::render(const Engine::Camera& camera,
@@ -55,13 +65,13 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 	VkSemaphore presentCompleteSemaphore, renderingCompleteSemaphore;
 	VkSemaphoreCreateInfo semaphoreCreateInfo = {
 		VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, 0, 0 };
-	vkCreateSemaphore(window.device, &semaphoreCreateInfo, nullptr,
+	vkCreateSemaphore(window.device->getHandle(), &semaphoreCreateInfo, nullptr,
 		&presentCompleteSemaphore);
-	vkCreateSemaphore(window.device, &semaphoreCreateInfo, nullptr,
+	vkCreateSemaphore(window.device->getHandle(), &semaphoreCreateInfo, nullptr,
 		&renderingCompleteSemaphore);
 
 	uint32_t nextImageIdx;
-	vkAcquireNextImageKHR(window.device, window.swapchain, UINT64_MAX,
+	vkAcquireNextImageKHR(window.device->getHandle(), window.swapchain, UINT64_MAX,
 		presentCompleteSemaphore, VK_NULL_HANDLE, &nextImageIdx);
 
 	VkCommandBufferBeginInfo beginInfo = {};
@@ -102,25 +112,18 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 	vkCmdBeginRenderPass(window.presentCommandBuffer, &renderPassBeginInfo,
 		VK_SUBPASS_CONTENTS_INLINE);
 
-	void* mapped;
-	VkResult result = vkMapMemory(window.device, uniformBuffer.memory, 0,
-		VK_WHOLE_SIZE, 0, &mapped);
-	if (result != VK_SUCCESS) {
-		throw runtime_error("Failed to map uniform buffer memory.");
-	}
-
 	for (int i = 0; i < entities.size(); i++) {
 		const Entity& e = entities[i];
 
-		Matrices& m = *((Matrices*)mapped + i);
+		Matrices m;
 		glm::mat4 worldMatrix = e.getNode()->getWorldMatrix()
 			* e.getScaleMatrix();
 		m.mvp = camera.getProjectionMatrix() * camera.getViewMatrix()
 			* worldMatrix;
 		m.normal = glm::transpose(glm::inverse(worldMatrix));
-	}
 
-	vkUnmapMemory(window.device, uniformBuffer.memory);
+		uniformBuffer->transfer(i*uniformBufferStride, sizeof(Matrices), &m);
+	}
 
 	for (int i = 0; i < entities.size(); i++) {
 		const Entity& e = entities[i];
@@ -129,7 +132,7 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 		auto found = meshCache.find(mesh);
 		if (found == meshCache.end()) {
 			shared_ptr<VulkanPerMesh> perMesh = make_shared<VulkanPerMesh>();
-			perMesh->init(program, mesh, window.memoryProperties,
+			perMesh->init(program, mesh, window.device->getMemoryProperties(),
 				&window.viewport, &window.scissor, window.renderPass,
 				pipelineLayout);
 			meshCache[mesh] = perMesh;
@@ -140,7 +143,7 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 		vkCmdBindPipeline(window.presentCommandBuffer,
 			VK_PIPELINE_BIND_POINT_GRAPHICS, perMesh->getPipeline());
 
-		uint32_t uniformOffset = i * sizeof(Matrices);
+		uint32_t uniformOffset = i * uniformBufferStride;
 
 		vkCmdBindDescriptorSets(window.presentCommandBuffer,
 			VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
@@ -175,7 +178,7 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 	VkFence renderFence;
 	VkFenceCreateInfo fenceCreateInfo = {};
 	fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-	vkCreateFence(window.device, &fenceCreateInfo, nullptr, &renderFence);
+	vkCreateFence(window.device->getHandle(), &fenceCreateInfo, nullptr, &renderFence);
 
 	VkPipelineStageFlags waitStageMash =
 		{ VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT };
@@ -188,10 +191,10 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 	submitInfo.pCommandBuffers = &window.presentCommandBuffer;
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = &renderingCompleteSemaphore;
-	vkQueueSubmit(window.presentQueue, 1, &submitInfo, renderFence);
+	vkQueueSubmit(window.device->getPresentQueue(), 1, &submitInfo, renderFence);
 
-	vkWaitForFences(window.device, 1, &renderFence, VK_TRUE, UINT64_MAX);
-	vkDestroyFence(window.device, renderFence, nullptr);
+	vkWaitForFences(window.device->getHandle(), 1, &renderFence, VK_TRUE, UINT64_MAX);
+	vkDestroyFence(window.device->getHandle(), renderFence, nullptr);
 
 	VkPresentInfoKHR presentInfo = {};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -201,10 +204,10 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 	presentInfo.pSwapchains = &window.swapchain;
 	presentInfo.pImageIndices = &nextImageIdx;
 	presentInfo.pResults = nullptr;
-	vkQueuePresentKHR(window.presentQueue, &presentInfo);
+	vkQueuePresentKHR(window.device->getPresentQueue(), &presentInfo);
 
-	vkDestroySemaphore(window.device, presentCompleteSemaphore, nullptr);
-	vkDestroySemaphore(window.device, renderingCompleteSemaphore, nullptr);
+	vkDestroySemaphore(window.device->getHandle(), presentCompleteSemaphore, nullptr);
+	vkDestroySemaphore(window.device->getHandle(), renderingCompleteSemaphore, nullptr);
 }
 
 void VulkanRenderer::createDescriptorPool() {
@@ -218,7 +221,7 @@ void VulkanRenderer::createDescriptorPool() {
 	poolInfo.pPoolSizes = &poolSize;
 	poolInfo.maxSets = 1;
 
-	VkResult result = vkCreateDescriptorPool(window.device, &poolInfo, nullptr,
+	VkResult result = vkCreateDescriptorPool(window.device->getHandle(), &poolInfo, nullptr,
 		&descriptorPool);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to create descriptor pool.");
@@ -238,7 +241,7 @@ void VulkanRenderer::createDescriptorSetLayout() {
     layoutInfo.bindingCount = 1;
     layoutInfo.pBindings = &uboLayoutBinding;
 
-	VkResult result = vkCreateDescriptorSetLayout(window.device, &layoutInfo,
+	VkResult result = vkCreateDescriptorSetLayout(window.device->getHandle(), &layoutInfo,
 		nullptr, &descriptorSetLayout);
     if (result != VK_SUCCESS) {
     	throw runtime_error("Failed to create descriptor set layout.");
@@ -253,7 +256,7 @@ void VulkanRenderer::createPipelineLayout() {
 	layoutCreateInfo.pushConstantRangeCount = 0;
 	layoutCreateInfo.pPushConstantRanges = nullptr;
 
-	VkResult result = vkCreatePipelineLayout(window.device, &layoutCreateInfo,
+	VkResult result = vkCreatePipelineLayout(window.device->getHandle(), &layoutCreateInfo,
 		nullptr, &pipelineLayout);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to create pipeline layout.");
@@ -267,7 +270,7 @@ void VulkanRenderer::allocateDescriptorSet() {
 	allocInfo.descriptorSetCount = 1;
 	allocInfo.pSetLayouts = &descriptorSetLayout;
 
-	VkResult result = vkAllocateDescriptorSets(window.device, &allocInfo,
+	VkResult result = vkAllocateDescriptorSets(window.device->getHandle(), &allocInfo,
 		&descriptorSet);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to allocate description set.");
@@ -276,9 +279,9 @@ void VulkanRenderer::allocateDescriptorSet() {
 
 void VulkanRenderer::setupDescriptors() {
 	VkDescriptorBufferInfo bufferInfo = {};
-	bufferInfo.buffer = uniformBuffer.buffer;
+	bufferInfo.buffer = uniformBuffer->getHandle();
 	bufferInfo.offset = 0;
-	bufferInfo.range = sizeof(Matrices);
+	bufferInfo.range = uniformBufferStride;
 
 	VkWriteDescriptorSet descriptorWrite = {};
 	descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -291,5 +294,5 @@ void VulkanRenderer::setupDescriptors() {
 	descriptorWrite.pImageInfo = nullptr;
 	descriptorWrite.pTexelBufferView = nullptr;
 
-	vkUpdateDescriptorSets(window.device, 1, &descriptorWrite, 0, nullptr);
+	vkUpdateDescriptorSets(window.device->getHandle(), 1, &descriptorWrite, 0, nullptr);
 }

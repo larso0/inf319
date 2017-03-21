@@ -4,8 +4,9 @@
 #include <vector>
 #include <Engine/Mesh.h>
 #include <vulkan/vulkan.h>
+
+#include "VulkanBuffer.h"
 #include "VulkanShaderProgram.h"
-#include "VulkanBuffers.h"
 
 class VulkanPerMesh {
 public:
@@ -26,14 +27,13 @@ public:
 private:
 	VkDevice device;
 
-	std::vector<VulkanBuffer> buffers;
+	std::vector<VulkanBuffer*> buffers;
 	VkPrimitiveTopology topology;
 	VkPipeline pipeline;
 	bool indexed;
 	uint32_t elementCount;
 
-	void createBuffers(const Engine::Mesh* mesh,
-		const VkPhysicalDeviceMemoryProperties& memoryProperties);
+	void createBuffers(const VulkanDevice& device, const Engine::Mesh* mesh);
 	void createPipeline(
 		const std::vector<VkPipelineShaderStageCreateInfo>& stages,
 		VkViewport* viewport, VkRect2D* scissor, VkRenderPass renderPass,

@@ -2,6 +2,7 @@
 #define VULKANWINDOW_H_
 
 #include "VulkanContext.h"
+#include "VulkanDevice.h"
 #include <Engine/Window.h>
 #include <Engine/Math.h>
 #include <vector>
@@ -58,17 +59,12 @@ private:
 	VkSurfaceKHR surface;
 	VkViewport viewport;
 	VkRect2D scissor;
-	VkPhysicalDevice physicalDevice;
-	VkDevice device;
-	uint32_t presentQueueIndex;
+	VulkanDevice* device;
 	VkFormat colorFormat;
 	VkSwapchainKHR swapchain;
-	VkCommandPool presentCommandPool;
 	VkCommandBuffer presentCommandBuffer;
 	std::vector<VkImage> presentImages;
-	VkQueue presentQueue;
 	std::vector<VkImageView> presentImageViews;
-	VkPhysicalDeviceMemoryProperties memoryProperties;
 	VkImage depthImage;
 	VkDeviceMemory depthImageMemory;
 	VkImageView depthImageView;
@@ -85,9 +81,7 @@ private:
 
 	VulkanRenderer* renderer;
 
-	void pickDevice();
 	void createSwapchain();
-	void createCommandPool();
 	void setupSwapchainImages();
 	void createDepthBuffer();
 	void createRenderPass();
