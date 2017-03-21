@@ -77,8 +77,8 @@ void VulkanPerMesh::createBuffers(const VulkanDevice& device, const Mesh* mesh) 
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 				| VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-		vertexBuffer->transfer(0, VK_WHOLE_SIZE,
-			(void*) indexedMesh->getIndexData());
+		indexBuffer->transfer(0, VK_WHOLE_SIZE,
+			(void*)indexedMesh->getIndexData());
 		buffers.push_back(indexBuffer);
 	} else {
 		elementCount = (uint32_t)mesh->getElementCount();

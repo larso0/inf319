@@ -20,6 +20,7 @@ private:
 	VulkanWindow& window;
 
 	VulkanShaderProgram program;
+	VulkanBuffer* uniformStagingBuffer;
 	VulkanBuffer* uniformBuffer;
 	VkDescriptorPool descriptorPool;
 	VkDescriptorSetLayout descriptorSetLayout;

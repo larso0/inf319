@@ -27,6 +27,7 @@ static vector<char> readFile(const string& filename) {
 VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 	window(window),
 	program(VulkanShaderProgram(*window.device)),
+	uniformStagingBuffer(nullptr),
 	descriptorPool(VK_NULL_HANDLE)
 {
 	vector<char> vertexShaderCode = readFile("Shaders/Simple.vert.spv");
@@ -40,11 +41,20 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 			.minUniformBufferOffsetAlignment;
 	}
 
+	VkDeviceSize uniformBufferSize = uniformBufferStride * 64;
 	uniformBuffer = new VulkanBuffer(*window.device, uniformBufferStride * 64,
 		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 			| VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
+	if (!(uniformBuffer->getMemoryProperties()
+		& VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
+		uniformStagingBuffer = new VulkanBuffer(*window.device,
+			uniformBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+				| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	}
 
 	createDescriptorPool();
 	createDescriptorSetLayout();
@@ -58,6 +68,7 @@ VulkanRenderer::~VulkanRenderer() {
 	vkDestroyDescriptorSetLayout(window.device->getHandle(), descriptorSetLayout, nullptr);
 	vkDestroyDescriptorPool(window.device->getHandle(), descriptorPool, nullptr);
 	delete uniformBuffer;
+	delete uniformStagingBuffer;
 }
 
 void VulkanRenderer::render(const Engine::Camera& camera,
@@ -112,17 +123,29 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 	vkCmdBeginRenderPass(window.presentCommandBuffer, &renderPassBeginInfo,
 		VK_SUBPASS_CONTENTS_INLINE);
 
+	void* mapped;
+	VkDeviceSize neededSize = entities.size() * uniformBufferStride;
+	if (uniformBuffer->getMemoryProperties()
+		& VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+		mapped = uniformBuffer->mapMemory(0, neededSize);
+	} else {
+		mapped = uniformStagingBuffer->mapMemory(0, neededSize);
+	}
 	for (int i = 0; i < entities.size(); i++) {
 		const Entity& e = entities[i];
-
-		Matrices m;
+		Matrices& m = *((Matrices*)(mapped + i * uniformBufferStride));
 		glm::mat4 worldMatrix = e.getNode()->getWorldMatrix()
 			* e.getScaleMatrix();
 		m.mvp = camera.getProjectionMatrix() * camera.getViewMatrix()
 			* worldMatrix;
 		m.normal = glm::transpose(glm::inverse(worldMatrix));
-
-		uniformBuffer->transfer(i*uniformBufferStride, sizeof(Matrices), &m);
+	}
+	if (uniformBuffer->getMemoryProperties()
+		& VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+		uniformBuffer->unmapMemory();
+	} else {
+		uniformStagingBuffer->unmapMemory();
+		uniformBuffer->transfer(*uniformStagingBuffer, 0, neededSize);
 	}
 
 	for (int i = 0; i < entities.size(); i++) {

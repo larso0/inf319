@@ -91,6 +91,9 @@ void VulkanBuffer::transfer(VkDeviceSize offset, VkDeviceSize size,
 	void* data) {
 	if (memoryProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
 		void* mapped = mapMemory(offset, size);
+		if (size == VK_WHOLE_SIZE) {
+			size = this->size - offset;
+		}
 		memcpy(mapped, data, size);
 		unmapMemory();
 	} else {
@@ -147,4 +150,49 @@ void VulkanBuffer::transfer(VkDeviceSize offset, VkDeviceSize size,
 		vkFreeCommandBuffers(device.getHandle(),
 			device.getTransferCommandPool(), 1, &commandBuffer);
 	}
+}
+
+void VulkanBuffer::transfer(const VulkanBuffer& from, VkDeviceSize offset,
+	VkDeviceSize size) {
+	VkCommandBufferAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandPool = device.getTransferCommandPool();
+	allocInfo.commandBufferCount = 1;
+
+	VkCommandBuffer commandBuffer;
+	vkAllocateCommandBuffers(device.getHandle(), &allocInfo, &commandBuffer);
+
+	VkCommandBufferBeginInfo beginInfo = {};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+	VkBufferCopy copyRegion = {};
+	copyRegion.srcOffset = 0;
+	copyRegion.dstOffset = offset;
+
+	if (size == VK_WHOLE_SIZE) {
+		copyRegion.size = this->size - offset;
+	} else {
+		copyRegion.size = size;
+	}
+
+	vkCmdCopyBuffer(commandBuffer, from.getHandle(), buffer, 1,
+		&copyRegion);
+
+	vkEndCommandBuffer(commandBuffer);
+
+	VkSubmitInfo submitInfo = {};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffer;
+
+	vkQueueSubmit(device.getTransferQueue(), 1, &submitInfo,
+	VK_NULL_HANDLE);
+	vkQueueWaitIdle(device.getTransferQueue());
+
+	vkFreeCommandBuffers(device.getHandle(), device.getTransferCommandPool(), 1,
+		&commandBuffer);
 }
