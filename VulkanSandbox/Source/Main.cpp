@@ -2,7 +2,6 @@
 #include <Engine/Entity.h>
 #include <iostream>
 #include <stdexcept>
-#include "Context.h"
 #include <vector>
 #include <algorithm>
 #include <cstring>
@@ -19,8 +18,8 @@ using namespace Engine;
 int main(int argc, char** argv) {
 	try {
 		VulkanContext vkContext;
-		VulkanWindow& window = (VulkanWindow&)vkContext.createWindow(1024, 768, 0);
-		VulkanRenderer& renderer = (VulkanRenderer&)window.getRenderer();
+		Window& window = vkContext.createWindow(1024, 768, 0);
+		Renderer& renderer = window.getRenderer();
 
 		Mesh cubeMesh = generateCube();
 		IndexedMesh sphereMesh = generateSphere(5);
@@ -67,12 +66,12 @@ int main(int argc, char** argv) {
 
 				glm::vec3 movement;
 				bool moved = false;
-				bool keyW = window.getKey(GLFW_KEY_W) == GLFW_PRESS;
-				bool keyA = window.getKey(GLFW_KEY_A) == GLFW_PRESS;
-				bool keyS = window.getKey(GLFW_KEY_S) == GLFW_PRESS;
-				bool keyD = window.getKey(GLFW_KEY_D) == GLFW_PRESS;
-				bool keyQ = window.getKey(GLFW_KEY_Q) == GLFW_PRESS;
-				bool keyE = window.getKey(GLFW_KEY_E) == GLFW_PRESS;
+				bool keyW = window.getKey(Key::W) == KeyAction::Press;
+				bool keyA = window.getKey(Key::A) == KeyAction::Press;
+				bool keyS = window.getKey(Key::S) == KeyAction::Press;
+				bool keyD = window.getKey(Key::D) == KeyAction::Press;
+				bool keyQ = window.getKey(Key::Q) == KeyAction::Press;
+				bool keyE = window.getKey(Key::E) == KeyAction::Press;
 				if (keyW && !keyS) {
 					movement += cameraDirection;
 					moved = true;

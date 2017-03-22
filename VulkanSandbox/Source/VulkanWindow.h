@@ -18,6 +18,10 @@ public:
 	void init() override;
 	void close() override;
 
+	bool shouldClose() const override {
+		return glfwWindowShouldClose(handle);
+	}
+
 	void resize(uint32_t w, uint32_t h) override {
 		viewport.width = w;
 		viewport.height = h;
@@ -25,25 +29,35 @@ public:
 		scissor.extent.height = h;
 	}
 
-	bool isCursorHidden() const {
-		return mouse.hidden;
-	}
-
-	bool shouldClose() const {
-		return glfwWindowShouldClose(handle);
-	}
-
-	bool getKey(int key) const {
-		return glfwGetKey(handle, key);
-	}
-
-	glm::vec2 mouseMotion() {
+	glm::vec2 mouseMotion() override {
 		glm::vec2 motion = mouse.motion;
 		mouse.motion = glm::vec2();
 		return motion;
 	}
 
-	Engine::Renderer& getRenderer() override;
+	bool isCursorHidden() const override {
+		return mouse.hidden;
+	}
+
+	void toggleCursorHidden() override {
+		glfwSetInputMode(handle, GLFW_CURSOR,
+			mouse.hidden ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+		mouse.hidden = !mouse.hidden;
+	}
+
+	Engine::KeyAction getKey(Engine::Key key) const override {
+		return static_cast<Engine::KeyAction>(glfwGetKey(handle,
+			static_cast<int>(key)));
+	}
+
+	Engine::KeyAction getMouseButton(Engine::MouseButton btn) const override {
+		return static_cast<Engine::KeyAction>(glfwGetMouseButton(handle,
+			static_cast<int>(btn)));
+	}
+
+	glm::vec2 getCursorPosition() const override {
+		return mouse.position;
+	}
 
 	virtual uint32_t getWidth() const override {
 		return viewport.width;
@@ -52,6 +66,8 @@ public:
 	virtual uint32_t getHeight() const override {
 		return viewport.height;
 	}
+
+	Engine::Renderer& getRenderer() override;
 
 private:
 	VulkanContext& context;
