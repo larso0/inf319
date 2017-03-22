@@ -32,6 +32,7 @@ private:
 		glm::mat4 normal;
 	};
 	VkDeviceSize uniformBufferStride;
+	VkSemaphore presentCompleteSemaphore, renderingCompleteSemaphore;
 
 	std::unordered_map<const Engine::Mesh*, std::shared_ptr<VulkanPerMesh>>
 	meshCache;

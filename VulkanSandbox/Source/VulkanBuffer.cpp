@@ -1,6 +1,7 @@
 #include <stdexcept>
 #include <cstring>
 #include "VulkanBuffer.h"
+#include <iostream>
 
 using namespace std;
 
@@ -89,11 +90,11 @@ void VulkanBuffer::unmapMemory() {
 
 void VulkanBuffer::transfer(VkDeviceSize offset, VkDeviceSize size,
 	void* data) {
+	if (size == VK_WHOLE_SIZE) {
+		size = this->size - offset;
+	}
 	if (memoryProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
 		void* mapped = mapMemory(offset, size);
-		if (size == VK_WHOLE_SIZE) {
-			size = this->size - offset;
-		}
 		memcpy(mapped, data, size);
 		unmapMemory();
 	} else {
@@ -126,12 +127,7 @@ void VulkanBuffer::transfer(VkDeviceSize offset, VkDeviceSize size,
 		VkBufferCopy copyRegion = {};
 		copyRegion.srcOffset = 0;
 		copyRegion.dstOffset = offset;
-
-		if (size == VK_WHOLE_SIZE) {
-			copyRegion.size = this->size - offset;
-		} else {
-			copyRegion.size = size;
-		}
+		copyRegion.size = size;
 
 		vkCmdCopyBuffer(commandBuffer, stagingBuffer.getHandle(), buffer, 1,
 			&copyRegion);

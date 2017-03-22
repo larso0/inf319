@@ -28,7 +28,9 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 	window(window),
 	program(VulkanShaderProgram(*window.device)),
 	uniformStagingBuffer(nullptr),
-	descriptorPool(VK_NULL_HANDLE)
+	descriptorPool(VK_NULL_HANDLE),
+	presentCompleteSemaphore(VK_NULL_HANDLE),
+	renderingCompleteSemaphore(VK_NULL_HANDLE)
 {
 	vector<char> vertexShaderCode = readFile("Shaders/Simple.vert.spv");
 	vector<char> fragmentShaderCode = readFile("Shaders/Simple.frag.spv");
@@ -61,6 +63,13 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 	createPipelineLayout();
 	allocateDescriptorSet();
 	setupDescriptors();
+
+	VkSemaphoreCreateInfo semaphoreCreateInfo = {
+		VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, 0, 0 };
+	vkCreateSemaphore(window.device->getHandle(), &semaphoreCreateInfo, nullptr,
+		&presentCompleteSemaphore);
+	vkCreateSemaphore(window.device->getHandle(), &semaphoreCreateInfo, nullptr,
+		&renderingCompleteSemaphore);
 }
 
 VulkanRenderer::~VulkanRenderer() {
@@ -69,17 +78,12 @@ VulkanRenderer::~VulkanRenderer() {
 	vkDestroyDescriptorPool(window.device->getHandle(), descriptorPool, nullptr);
 	delete uniformBuffer;
 	delete uniformStagingBuffer;
+	vkDestroySemaphore(window.device->getHandle(), presentCompleteSemaphore, nullptr);
+	vkDestroySemaphore(window.device->getHandle(), renderingCompleteSemaphore, nullptr);
 }
 
 void VulkanRenderer::render(const Engine::Camera& camera,
 	const std::vector<Engine::Entity>& entities) {
-	VkSemaphore presentCompleteSemaphore, renderingCompleteSemaphore;
-	VkSemaphoreCreateInfo semaphoreCreateInfo = {
-		VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, 0, 0 };
-	vkCreateSemaphore(window.device->getHandle(), &semaphoreCreateInfo, nullptr,
-		&presentCompleteSemaphore);
-	vkCreateSemaphore(window.device->getHandle(), &semaphoreCreateInfo, nullptr,
-		&renderingCompleteSemaphore);
 
 	uint32_t nextImageIdx;
 	vkAcquireNextImageKHR(window.device->getHandle(), window.swapchain, UINT64_MAX,
@@ -228,9 +232,6 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 	presentInfo.pImageIndices = &nextImageIdx;
 	presentInfo.pResults = nullptr;
 	vkQueuePresentKHR(window.device->getPresentQueue(), &presentInfo);
-
-	vkDestroySemaphore(window.device->getHandle(), presentCompleteSemaphore, nullptr);
-	vkDestroySemaphore(window.device->getHandle(), renderingCompleteSemaphore, nullptr);
 }
 
 void VulkanRenderer::createDescriptorPool() {
