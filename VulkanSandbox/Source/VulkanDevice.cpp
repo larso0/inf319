@@ -1,6 +1,7 @@
 #include "VulkanDevice.h"
 #include <stdexcept>
 #include <vector>
+#include <iostream>
 
 using namespace std;
 
@@ -26,7 +27,6 @@ VulkanDevice::Capability operator~(VulkanDevice::Capability a) {
 	return static_cast<VulkanDevice::Capability>(~static_cast<int>(a));
 }
 
-static const char* validationLayer = "VK_LAYER_LUNARG_standard_validation";
 static const char* swapchainExtension = "VK_KHR_swapchain";
 
 VulkanDevice::VulkanDevice(const VulkanContext& context,
@@ -138,10 +138,6 @@ VulkanDevice::VulkanDevice(const VulkanContext& context,
 	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	deviceCreateInfo.queueCreateInfoCount = queues.size();
 	deviceCreateInfo.pQueueCreateInfos = queues.data();
-#ifndef NDEBUG
-	deviceCreateInfo.enabledLayerCount = 1;
-	deviceCreateInfo.ppEnabledLayerNames = &validationLayer;
-#endif
 
 	features = {};
 	if ((capability & Capability::Graphics) != Capability::None) {

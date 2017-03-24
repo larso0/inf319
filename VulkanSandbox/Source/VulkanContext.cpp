@@ -132,7 +132,7 @@ void VulkanContext::createInstance() {
 	appInfo.applicationVersion = 1;
 	appInfo.pEngineName = "VulkanSandbox";
 	appInfo.engineVersion = 1;
-	appInfo.apiVersion = VK_API_VERSION_1_0;
+	appInfo.apiVersion = 0;
 
 	VkInstanceCreateInfo instanceInfo = {};
 	instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
