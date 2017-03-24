@@ -3,12 +3,14 @@
 
 #include <Engine/Mesh.h>
 #include <Engine/Node.h>
+#include <Engine/Material.h>
 
 namespace Engine {
 	class Entity {
 	public:
-		Entity() : mesh(nullptr), node(nullptr) {}
-		Entity(Mesh* m, Engine::Node* n) : mesh(m), node(n) {}
+		Entity() : mesh(nullptr), node(nullptr), material(nullptr) {}
+		Entity(Mesh* mesh, Node* node, Material* material) :
+			mesh(mesh), node(node), material(material) {}
 		~Entity() {}
 
 		Mesh* getMesh() {
@@ -19,12 +21,20 @@ namespace Engine {
 			return mesh;
 		}
 
-		Engine::Node* getNode() {
+		Node* getNode() {
 			return node;
 		}
 
-		const Engine::Node* getNode() const {
+		const Node* getNode() const {
 			return node;
+		}
+
+		Material* getMaterial() {
+			return material;
+		}
+
+		const Material* getMaterial() const {
+			return material;
 		}
 
 		const glm::mat4& getScaleMatrix() const {
@@ -35,8 +45,12 @@ namespace Engine {
 			mesh = m;
 		}
 
-		void setNode(Engine::Node* n) {
+		void setNode(Node* n) {
 			node = n;
+		}
+
+		void setMaterial(Material* m) {
+			material = m;
 		}
 
 		void setScale(float x, float y, float z) {
@@ -49,7 +63,8 @@ namespace Engine {
 
 	private:
 		Mesh* mesh;
-		Engine::Node* node;
+		Node* node;
+		Material* material;
 		glm::mat4 scaleMatrix;
 	};
 }
