@@ -38,7 +38,7 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 	program.addShaderStage(fragmentShaderCode, VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	uniformBufferStride = 0;
-	while (uniformBufferStride < sizeof(Matrices)) {
+	while (uniformBufferStride < sizeof(EntityData)) {
 		uniformBufferStride += window.device->getProperties().limits
 			.minUniformBufferOffsetAlignment;
 	}
@@ -137,12 +137,17 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 	}
 	for (int i = 0; i < entities.size(); i++) {
 		const Entity& e = entities[i];
-		Matrices& m = *((Matrices*)(mapped + i * uniformBufferStride));
+		EntityData& data = *((EntityData*)(mapped + i * uniformBufferStride));
 		glm::mat4 worldMatrix = e.getNode()->getWorldMatrix()
 			* e.getScaleMatrix();
-		m.mvp = camera.getProjectionMatrix() * camera.getViewMatrix()
+		data.mvp = camera.getProjectionMatrix() * camera.getViewMatrix()
 			* worldMatrix;
-		m.normal = glm::transpose(glm::inverse(worldMatrix));
+		data.normal = glm::transpose(glm::inverse(worldMatrix));
+		if (e.getMaterial()) {
+			data.color = e.getMaterial()->getColor();
+		} else {
+			data.color = glm::vec4(0.8f, 0.f, 0.8f, 1.f);
+		}
 	}
 	if (uniformBuffer->getMemoryProperties()
 		& VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
@@ -257,7 +262,7 @@ void VulkanRenderer::createDescriptorSetLayout() {
     uboLayoutBinding.binding = 0;
     uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     uboLayoutBinding.descriptorCount = 1;
-    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     uboLayoutBinding.pImmutableSamplers = nullptr;
 
     VkDescriptorSetLayoutCreateInfo layoutInfo = {};

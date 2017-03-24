@@ -19,7 +19,7 @@ private:
 	GLWindow& window;
 	GLuint drawProgram;
 	GLint vertexPosition, vertexNormal, vertexTextureCoordinate;
-	GLint worldViewProjectionMatrixUniform, normalMatrixUniform;
+	GLint worldViewProjectionMatrixUniform, normalMatrixUniform, entityColorUniform;
 	std::unordered_map<const Engine::Mesh*, std::shared_ptr<GLPerMesh>> meshCache;
 };
 

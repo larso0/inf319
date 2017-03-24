@@ -21,8 +21,9 @@ const char* fragmentShaderSource =
 	"#version 450\n"
 	"in vec3 fragmentNormal;\n"
 	"out vec3 color;\n"
+	"uniform vec3 entityColor;\n"
 	"void main() {\n"
-	"	color = fragmentNormal;\n"
+	"	color = entityColor * 0.8 + fragmentNormal * 0.2;\n"
 	"}\n";
 
 static GLuint createShader(GLenum type, const char* source) {
@@ -90,6 +91,7 @@ GLRenderer::GLRenderer(GLWindow& window) : window(window) {
 	vertexTextureCoordinate = glGetAttribLocation(drawProgram, "vertexTextureCoordinate");
 	worldViewProjectionMatrixUniform = glGetUniformLocation(drawProgram, "worldViewProjectionMatrix");
 	normalMatrixUniform = glGetUniformLocation(drawProgram, "normalMatrix");
+	entityColorUniform = glGetUniformLocation(drawProgram, "entityColor");
 	glUseProgram(drawProgram);
 }
 
@@ -117,6 +119,8 @@ void GLRenderer::render(const Camera& camera, const vector<Entity>& entities) {
 			glm::value_ptr(worldViewProjectionMatrix));
 		glUniformMatrix4fv(normalMatrixUniform, 1, GL_FALSE,
 			glm::value_ptr(normalMatrix));
+		glUniform3fv(entityColorUniform, 1,
+			glm::value_ptr(e.getMaterial()->getColor()));
 
 		shared_ptr<GLPerMesh> perMesh = meshCache[mesh];
 		perMesh->bind();

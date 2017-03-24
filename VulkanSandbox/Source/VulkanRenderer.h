@@ -27,9 +27,10 @@ private:
 	VkPipelineLayout pipelineLayout;
 	VkDescriptorSet descriptorSet;
 
-	struct Matrices {
+	struct EntityData {
 		glm::mat4 mvp;
 		glm::mat4 normal;
+		glm::vec4 color;
 	};
 	VkDeviceSize uniformBufferStride;
 	VkSemaphore presentCompleteSemaphore, renderingCompleteSemaphore;

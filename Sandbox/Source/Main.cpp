@@ -30,10 +30,17 @@ int main(int argc, char** argv) {
 		sphere.translate(0.f, 2.f, 0.f);
 		cube1.update();
 
+		Material red;
+		red.setColor(1.f, 0.f, 0.f, 1.f);
+		Material green;
+		green.setColor(0.f, 1.f, 0.f, 1.f);
+		Material blue;
+		blue.setColor(0.f, 0.f, 1.f, 1.f);
+
 		vector<Entity> entities {
-			Entity(&cubeMesh, &cube1),
-			Entity(&cubeMesh, &cube2),
-			Entity(&sphereMesh, &sphere)
+			Entity(&cubeMesh, &cube1, &red),
+			Entity(&cubeMesh, &cube2, &green),
+			Entity(&sphereMesh, &sphere, &blue)
 		};
 		entities[1].setScale(0.2f, 2.f, 0.2f);
 
@@ -99,8 +106,8 @@ int main(int argc, char** argv) {
 				}
 
 				glm::vec2 motion = window.mouseMotion();
-				yaw -= motion.x * 0.002f;
-				pitch -= motion.y * 0.002f;
+				yaw -= motion.x * 0.005f;
+				pitch -= motion.y * 0.005f;
 
 				cameraNode.setRotation(yaw, glm::vec3(0.f, 1.f, 0.f));
 				cameraNode.rotate(pitch, glm::vec3(1.f, 0.f, 0.f));

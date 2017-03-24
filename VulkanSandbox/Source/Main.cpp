@@ -32,10 +32,17 @@ int main(int argc, char** argv) {
 		sphere.translate(0.f, 2.f, 0.f);
 		cube1.update();
 
+		Material red;
+		red.setColor(1.f, 0.f, 0.f, 1.f);
+		Material green;
+		green.setColor(0.f, 1.f, 0.f, 1.f);
+		Material blue;
+		blue.setColor(0.f, 0.f, 1.f, 1.f);
+
 		vector<Entity> entities {
-			Entity(&cubeMesh, &cube1),
-			Entity(&cubeMesh, &cube2),
-			Entity(&sphereMesh, &sphere)
+			Entity(&cubeMesh, &cube1, &red),
+			Entity(&cubeMesh, &cube2, &green),
+			Entity(&sphereMesh, &sphere, &blue)
 		};
 		entities[1].setScale(0.2f, 2.f, 0.2f);
 
