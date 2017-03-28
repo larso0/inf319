@@ -12,14 +12,13 @@ public:
 	GLRenderer(GLWindow& window);
 	~GLRenderer();
 
-	void render(const Engine::Camera& camera,
-		const std::vector<Engine::Entity>& entities);
+	void render() override;
 
 private:
 	GLWindow& window;
 	GLuint drawProgram;
 	GLint vertexPosition, vertexNormal, vertexTextureCoordinate;
-	GLint worldViewProjectionMatrixUniform, normalMatrixUniform, entityColorUniform;
+	GLint worldViewProjectionMatrixUniform, normalMatrixUniform, entityColorUniform, lightDirectionUniform;
 	std::unordered_map<const Engine::Mesh*, std::shared_ptr<GLPerMesh>> meshCache;
 };
 

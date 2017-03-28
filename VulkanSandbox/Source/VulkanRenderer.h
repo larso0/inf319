@@ -13,8 +13,7 @@ public:
 	VulkanRenderer(VulkanWindow& window);
 	~VulkanRenderer();
 
-	void render(const Engine::Camera& camera,
-		const std::vector<Engine::Entity>& entities) override;
+	void render() override;
 
 private:
 	VulkanWindow& window;

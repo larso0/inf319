@@ -10,20 +10,25 @@ const char* vertexShaderSource =
 	"in vec3 vertexPosition;\n"
 	"in vec3 vertexNormal;\n"
 	"out vec3 fragmentNormal;\n"
+	"out vec3 fragmentLightDirection;\n"
 	"uniform mat4 worldViewProjectionMatrix;\n"
 	"uniform mat4 normalMatrix;\n"
+	"uniform vec3 lightDirection;\n"
 	"void main() {\n"
 	"	fragmentNormal = normalize(normalMatrix * vec4(vertexNormal, 0)).xyz;\n"
+	"	fragmentLightDirection = normalize(normalMatrix * vec4(lightDirection, 0)).xyz;\n"
 	"	gl_Position = worldViewProjectionMatrix * vec4(vertexPosition, 1);\n"
 	"}\n";
 
 const char* fragmentShaderSource =
 	"#version 450\n"
 	"in vec3 fragmentNormal;\n"
+	"in vec3 fragmentLightDirection;\n"
 	"out vec3 color;\n"
 	"uniform vec3 entityColor;\n"
 	"void main() {\n"
-	"	color = entityColor * 0.8 + fragmentNormal * 0.2;\n"
+	"	float lightIntensity = clamp(dot(fragmentLightDirection, fragmentNormal), 0, 1) * 0.8;\n"
+	"	color = entityColor * (0.2 + lightIntensity);\n"
 	"}\n";
 
 static GLuint createShader(GLenum type, const char* source) {
@@ -84,7 +89,10 @@ static GLuint createDrawProgram() {
 	return handle;
 }
 
-GLRenderer::GLRenderer(GLWindow& window) : window(window) {
+GLRenderer::GLRenderer(GLWindow& window) :
+Renderer(),
+window(window)
+{
 	drawProgram = createDrawProgram();
 	vertexPosition = glGetAttribLocation(drawProgram, "vertexPosition");
 	vertexNormal = glGetAttribLocation(drawProgram, "vertexNormal");
@@ -92,6 +100,7 @@ GLRenderer::GLRenderer(GLWindow& window) : window(window) {
 	worldViewProjectionMatrixUniform = glGetUniformLocation(drawProgram, "worldViewProjectionMatrix");
 	normalMatrixUniform = glGetUniformLocation(drawProgram, "normalMatrix");
 	entityColorUniform = glGetUniformLocation(drawProgram, "entityColor");
+	lightDirectionUniform = glGetUniformLocation(drawProgram, "lightDirection");
 	glUseProgram(drawProgram);
 }
 
@@ -99,10 +108,18 @@ GLRenderer::~GLRenderer() {
 	glDeleteProgram(drawProgram);
 }
 
-void GLRenderer::render(const Camera& camera, const vector<Entity>& entities) {
+void GLRenderer::render() {
+#ifndef NDEBUG
+	if (camera == nullptr) {
+		throw runtime_error("No camera set.");
+	}
+	if (lightSources.size() < 1) {
+		throw runtime_error("No light source.");
+	}
+#endif
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	for (const Entity& e : entities) {
-		const Mesh* mesh = e.getMesh();
+	for (const Entity* e : entities) {
+		const Mesh* mesh = e->getMesh();
 		auto result = meshCache.find(mesh);
 		if (result == meshCache.end()) {
 			shared_ptr<GLPerMesh> perMesh = make_shared<GLPerMesh>(mesh,
@@ -110,8 +127,10 @@ void GLRenderer::render(const Camera& camera, const vector<Entity>& entities) {
 			meshCache[mesh] = perMesh;
 		}
 
-		glm::mat4 worldMatrix = e.getNode()->getWorldMatrix() * e.getScaleMatrix();
-		glm::mat4 worldViewProjectionMatrix = camera.getProjectionMatrix() * camera.getViewMatrix() * worldMatrix;
+		glm::mat4 worldMatrix = e->getNode()->getWorldMatrix()
+			* e->getScaleMatrix();
+		glm::mat4 worldViewProjectionMatrix = camera->getProjectionMatrix()
+			* camera->getViewMatrix() * worldMatrix;
 		glm::mat4 normalMatrix =
 			glm::transpose(glm::inverse(worldMatrix));
 
@@ -120,7 +139,9 @@ void GLRenderer::render(const Camera& camera, const vector<Entity>& entities) {
 		glUniformMatrix4fv(normalMatrixUniform, 1, GL_FALSE,
 			glm::value_ptr(normalMatrix));
 		glUniform3fv(entityColorUniform, 1,
-			glm::value_ptr(e.getMaterial()->getColor()));
+			glm::value_ptr(e->getMaterial()->getColor()));
+		glUniform3fv(lightDirectionUniform, 1,
+			glm::value_ptr(lightSources[0]->getDirection()));
 
 		shared_ptr<GLPerMesh> perMesh = meshCache[mesh];
 		perMesh->bind();

@@ -25,6 +25,7 @@ static vector<char> readFile(const string& filename) {
 }
 
 VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
+	Renderer(),
 	window(window),
 	program(VulkanShaderProgram(*window.device)),
 	uniformStagingBuffer(nullptr),
@@ -82,8 +83,12 @@ VulkanRenderer::~VulkanRenderer() {
 	vkDestroySemaphore(window.device->getHandle(), renderingCompleteSemaphore, nullptr);
 }
 
-void VulkanRenderer::render(const Engine::Camera& camera,
-	const std::vector<Engine::Entity>& entities) {
+void VulkanRenderer::render() {
+#ifndef NDEBUG
+	if (camera == nullptr) {
+		throw runtime_error("No camera set.");
+	}
+#endif
 
 	uint32_t nextImageIdx;
 	vkAcquireNextImageKHR(window.device->getHandle(), window.swapchain, UINT64_MAX,
@@ -136,11 +141,12 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 		mapped = uniformStagingBuffer->mapMemory(0, neededSize);
 	}
 	for (int i = 0; i < entities.size(); i++) {
-		const Entity& e = entities[i];
-		EntityData& data = *((EntityData*)(mapped + i * uniformBufferStride));
+		const Entity& e = *entities[i];
+		EntityData& data = *((EntityData*) ((char*) mapped
+			+ i * uniformBufferStride));
 		glm::mat4 worldMatrix = e.getNode()->getWorldMatrix()
 			* e.getScaleMatrix();
-		data.mvp = camera.getProjectionMatrix() * camera.getViewMatrix()
+		data.mvp = camera->getProjectionMatrix() * camera->getViewMatrix()
 			* worldMatrix;
 		data.normal = glm::transpose(glm::inverse(worldMatrix));
 		if (e.getMaterial()) {
@@ -158,7 +164,7 @@ void VulkanRenderer::render(const Engine::Camera& camera,
 	}
 
 	for (int i = 0; i < entities.size(); i++) {
-		const Entity& e = entities[i];
+		const Entity& e = *entities[i];
 
 		const Mesh* mesh = e.getMesh();
 		auto found = meshCache.find(mesh);

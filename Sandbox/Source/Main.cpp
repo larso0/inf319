@@ -37,12 +37,13 @@ int main(int argc, char** argv) {
 		Material blue;
 		blue.setColor(0.f, 0.f, 1.f, 1.f);
 
-		vector<Entity> entities {
-			Entity(&cubeMesh, &cube1, &red),
-			Entity(&cubeMesh, &cube2, &green),
-			Entity(&sphereMesh, &sphere, &blue)
-		};
-		entities[1].setScale(0.2f, 2.f, 0.2f);
+		Entity e1(&cubeMesh, &cube1, &red),
+			   e2(&cubeMesh, &cube2, &green),
+			   e3(&sphereMesh, &sphere, &blue);
+		e2.setScale(0.2f, 2.f, 0.2f);
+
+		LightSource light;
+		light.setDirection(-0.5f, 1.f, 0.f);
 
 		Node cameraNode;
 		cameraNode.translate(0.f, 0.f, 3.f);
@@ -53,10 +54,16 @@ int main(int argc, char** argv) {
 			100.f);
 		camera.update();
 
+		renderer.addEntity(&e1);
+		renderer.addEntity(&e2);
+		renderer.addEntity(&e3);
+		renderer.addLightSource(&light);
+		renderer.setCamera(&camera);
+
 		float yaw = 0.f, pitch = 0.f;
 		double time = glfwGetTime();
 		while (!window.shouldClose()) {
-			renderer.render(camera, entities);
+			renderer.render();
 			glfwPollEvents();
 
 			if (window.isCursorHidden()) {
