@@ -10,24 +10,21 @@ const char* vertexShaderSource =
 	"in vec3 vertexPosition;\n"
 	"in vec3 vertexNormal;\n"
 	"out vec3 fragmentNormal;\n"
-	"out vec3 fragmentLightDirection;\n"
 	"uniform mat4 worldViewProjectionMatrix;\n"
 	"uniform mat4 normalMatrix;\n"
-	"uniform vec3 lightDirection;\n"
 	"void main() {\n"
 	"	fragmentNormal = normalize(normalMatrix * vec4(vertexNormal, 0)).xyz;\n"
-	"	fragmentLightDirection = normalize(normalMatrix * vec4(lightDirection, 0)).xyz;\n"
 	"	gl_Position = worldViewProjectionMatrix * vec4(vertexPosition, 1);\n"
 	"}\n";
 
 const char* fragmentShaderSource =
 	"#version 450\n"
 	"in vec3 fragmentNormal;\n"
-	"in vec3 fragmentLightDirection;\n"
 	"out vec3 color;\n"
 	"uniform vec3 entityColor;\n"
+	"uniform vec3 lightDirection;\n"
 	"void main() {\n"
-	"	float lightIntensity = clamp(dot(fragmentLightDirection, fragmentNormal), 0, 1) * 0.8;\n"
+	"	float lightIntensity = clamp(dot(lightDirection, fragmentNormal), 0, 1) * 0.8;\n"
 	"	color = entityColor * (0.2 + lightIntensity);\n"
 	"}\n";
 

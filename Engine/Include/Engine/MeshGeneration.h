@@ -3,10 +3,12 @@
 
 #include <Engine/IndexedMesh.h>
 #include <Engine/Mesh.h>
+#include <string>
 
 namespace Engine {
 	Mesh generateCube();
 	IndexedMesh generateSphere(unsigned subdivisions);
+	Mesh loadMesh(const std::string& filePath);
 }
 
 #endif

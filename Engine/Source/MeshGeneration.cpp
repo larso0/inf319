@@ -1,5 +1,10 @@
 #include <Engine/MeshGeneration.h>
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tiny_obj_loader.h>
+#include <iostream>
+#include <stdexcept>
 
+using namespace std;
 using glm::vec3;
 using glm::vec2;
 
@@ -115,5 +120,43 @@ namespace Engine {
 		subdivide(m, a, d, f, subdivisions);
 
 		return m;
+	}
+
+	Mesh loadMesh(const string& filePath) {
+		tinyobj::attrib_t attrib;
+		vector<tinyobj::shape_t> shapes;
+		vector<tinyobj::material_t> materials;
+		string err;
+		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err,
+			filePath.c_str())) {
+			throw runtime_error(err);
+		}
+
+		if (!err.empty()) {
+			cerr << err;
+		}
+
+		Mesh mesh;
+
+		for (const tinyobj::shape_t& shape : shapes) {
+			for (const tinyobj::index_t& i : shape.mesh.indices) {
+				Vertex v;
+				v.position.x = attrib.vertices[i.vertex_index*3];
+				v.position.y = attrib.vertices[i.vertex_index*3+1];
+				v.position.z = attrib.vertices[i.vertex_index*3+2];
+				mesh.addVertex(v);
+			}
+		}
+
+		for (int i = 0; i < mesh.getElementCount();) {
+			Vertex& a = mesh.getVertices()[i++];
+			Vertex& b = mesh.getVertices()[i++];
+			Vertex& c = mesh.getVertices()[i++];
+
+			a.normal = b.normal = c.normal = glm::normalize(
+				glm::cross(a.position - c.position, b.position - c.position));
+		}
+
+		return mesh;
 	}
 }

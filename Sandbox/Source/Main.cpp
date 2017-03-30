@@ -21,13 +21,16 @@ int main(int argc, char** argv) {
 
 		Mesh cubeMesh = generateCube();
 		IndexedMesh sphereMesh = generateSphere(5);
+		Mesh supriseMesh = loadMesh("../Assets/teapot.obj");
 
 		Node cube1;
 		Node cube2(&cube1);
 		Node sphere(&cube1);
+		Node suprise(&cube2);
 		cube2.translate(2.f, 0.f, 0.f);
 		cube2.rotate(glm::radians(45.f), glm::vec3(0.f, 1.f, 0.f));
 		sphere.translate(0.f, 2.f, 0.f);
+		suprise.translate(0.f, 5.f, 0.f);
 		cube1.update();
 
 		Material red;
@@ -39,7 +42,8 @@ int main(int argc, char** argv) {
 
 		Entity e1(&cubeMesh, &cube1, &red),
 			   e2(&cubeMesh, &cube2, &green),
-			   e3(&sphereMesh, &sphere, &blue);
+			   e3(&sphereMesh, &sphere, &blue),
+			   e4(&supriseMesh, &suprise, &red);
 		e2.setScale(0.2f, 2.f, 0.2f);
 
 		LightSource light;
@@ -57,6 +61,7 @@ int main(int argc, char** argv) {
 		renderer.addEntity(&e1);
 		renderer.addEntity(&e2);
 		renderer.addEntity(&e3);
+		renderer.addEntity(&e4);
 		renderer.addLightSource(&light);
 		renderer.setCamera(&camera);
 
