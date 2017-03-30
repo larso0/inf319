@@ -122,39 +122,35 @@ namespace Engine {
 		return m;
 	}
 
-	Mesh loadMesh(const string& filePath) {
-		tinyobj::attrib_t attrib;
+	IndexedMesh loadMesh(const string& filePath) {
 		vector<tinyobj::shape_t> shapes;
 		vector<tinyobj::material_t> materials;
 		string err;
-		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err,
-			filePath.c_str())) {
-			throw runtime_error(err);
-		}
+		tinyobj::LoadObj(shapes, materials, err, filePath.c_str(), nullptr,
+			tinyobj::load_flags_t::triangulation
+				| tinyobj::load_flags_t::calculate_normals);
 
 		if (!err.empty()) {
 			cerr << err;
 		}
 
-		Mesh mesh;
+		IndexedMesh mesh;
 
 		for (const tinyobj::shape_t& shape : shapes) {
-			for (const tinyobj::index_t& i : shape.mesh.indices) {
+			for (int i = 0; i < shape.mesh.positions.size();) {
 				Vertex v;
-				v.position.x = attrib.vertices[i.vertex_index*3];
-				v.position.y = attrib.vertices[i.vertex_index*3+1];
-				v.position.z = attrib.vertices[i.vertex_index*3+2];
+				v.position.x = shape.mesh.positions[i];
+				v.normal.x = shape.mesh.normals[i++];
+				v.position.y = shape.mesh.positions[i];
+				v.normal.y = shape.mesh.normals[i++];
+				v.position.z = shape.mesh.positions[i];
+				v.normal.z = shape.mesh.normals[i++];
 				mesh.addVertex(v);
 			}
-		}
-
-		for (int i = 0; i < mesh.getElementCount();) {
-			Vertex& a = mesh.getVertices()[i++];
-			Vertex& b = mesh.getVertices()[i++];
-			Vertex& c = mesh.getVertices()[i++];
-
-			a.normal = b.normal = c.normal = glm::normalize(
-				glm::cross(a.position - c.position, b.position - c.position));
+			uint32_t offset = (uint32_t)mesh.getElementCount();
+			for (uint32_t i : shape.mesh.indices) {
+				mesh.addIndex(i + offset);
+			}
 		}
 
 		return mesh;

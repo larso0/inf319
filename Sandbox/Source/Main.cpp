@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
 
 		Mesh cubeMesh = generateCube();
 		IndexedMesh sphereMesh = generateSphere(5);
-		Mesh supriseMesh = loadMesh("../Assets/teapot.obj");
+		IndexedMesh supriseMesh = loadMesh("../Assets/teapot.obj");
 
 		Node cube1;
 		Node cube2(&cube1);

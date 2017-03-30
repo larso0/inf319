@@ -8,7 +8,7 @@
 namespace Engine {
 	Mesh generateCube();
 	IndexedMesh generateSphere(unsigned subdivisions);
-	Mesh loadMesh(const std::string& filePath);
+	IndexedMesh loadMesh(const std::string& filePath);
 }
 
 #endif
