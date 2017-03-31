@@ -19,8 +19,10 @@ private:
 	VulkanWindow& window;
 
 	VulkanShaderProgram program;
-	VulkanBuffer* uniformStagingBuffer;
-	VulkanBuffer* uniformBuffer;
+	VulkanBuffer* entityDataStagingBuffer;
+	VulkanBuffer* entityDataBuffer;
+	VulkanBuffer* lightDataStagingBuffer;
+	VulkanBuffer* lightDataBuffer;
 	VkDescriptorPool descriptorPool;
 	VkDescriptorSetLayout descriptorSetLayout;
 	VkPipelineLayout pipelineLayout;
@@ -31,7 +33,12 @@ private:
 		glm::mat4 normal;
 		glm::vec4 color;
 	};
-	VkDeviceSize uniformBufferStride;
+
+	struct LightData {
+		glm::vec3 direction;
+	};
+
+	VkDeviceSize entityDataStride, lightDataStride;
 	VkSemaphore presentCompleteSemaphore, renderingCompleteSemaphore;
 
 	std::unordered_map<const Engine::Mesh*, std::shared_ptr<VulkanPerMesh>>

@@ -28,7 +28,7 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 	Renderer(),
 	window(window),
 	program(VulkanShaderProgram(*window.device)),
-	uniformStagingBuffer(nullptr),
+	entityDataStagingBuffer(nullptr),
 	descriptorPool(VK_NULL_HANDLE),
 	presentCompleteSemaphore(VK_NULL_HANDLE),
 	renderingCompleteSemaphore(VK_NULL_HANDLE)
@@ -38,23 +38,42 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 	program.addShaderStage(vertexShaderCode, VK_SHADER_STAGE_VERTEX_BIT);
 	program.addShaderStage(fragmentShaderCode, VK_SHADER_STAGE_FRAGMENT_BIT);
 
-	uniformBufferStride = 0;
-	while (uniformBufferStride < sizeof(EntityData)) {
-		uniformBufferStride += window.device->getProperties().limits
+	entityDataStride = 0;
+	while (entityDataStride < sizeof(EntityData)) {
+		entityDataStride += window.device->getProperties().limits
 			.minUniformBufferOffsetAlignment;
 	}
 
-	VkDeviceSize uniformBufferSize = uniformBufferStride * 64;
-	uniformBuffer = new VulkanBuffer(*window.device, uniformBufferStride * 64,
+	lightDataStride = 0;
+	while (lightDataStride < sizeof(LightData)) {
+		lightDataStride += window.device->getProperties().limits
+			.minUniformBufferOffsetAlignment;
+	}
+
+	VkDeviceSize entityDataBufferSize = entityDataStride * 64;
+	entityDataBuffer = new VulkanBuffer(*window.device, entityDataBufferSize,
 		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 			| VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
-	if (!(uniformBuffer->getMemoryProperties()
+	if (!(entityDataBuffer->getMemoryProperties()
 		& VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
-		uniformStagingBuffer = new VulkanBuffer(*window.device,
-			uniformBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		entityDataStagingBuffer = new VulkanBuffer(*window.device,
+			entityDataBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+				| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	}
+
+	lightDataBuffer = new VulkanBuffer(*window.device, lightDataStride,
+		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+			| VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
+	if (!(lightDataBuffer->getMemoryProperties() & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
+		lightDataStagingBuffer = new VulkanBuffer(*window.device,
+			lightDataStride, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
 				| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	}
@@ -77,8 +96,10 @@ VulkanRenderer::~VulkanRenderer() {
 	vkDestroyPipelineLayout(window.device->getHandle(), pipelineLayout, nullptr);
 	vkDestroyDescriptorSetLayout(window.device->getHandle(), descriptorSetLayout, nullptr);
 	vkDestroyDescriptorPool(window.device->getHandle(), descriptorPool, nullptr);
-	delete uniformBuffer;
-	delete uniformStagingBuffer;
+	delete entityDataBuffer;
+	if (entityDataStagingBuffer) delete entityDataStagingBuffer;
+	delete lightDataBuffer;
+	if (lightDataStagingBuffer) delete lightDataStagingBuffer;
 	vkDestroySemaphore(window.device->getHandle(), presentCompleteSemaphore, nullptr);
 	vkDestroySemaphore(window.device->getHandle(), renderingCompleteSemaphore, nullptr);
 }
@@ -132,18 +153,38 @@ void VulkanRenderer::render() {
 	vkCmdBeginRenderPass(window.presentCommandBuffer, &renderPassBeginInfo,
 		VK_SUBPASS_CONTENTS_INLINE);
 
+	if (lightSources.empty()) {
+		throw runtime_error("No light source.");
+	}
+
 	void* mapped;
-	VkDeviceSize neededSize = entities.size() * uniformBufferStride;
-	if (uniformBuffer->getMemoryProperties()
+	if (lightDataBuffer->getMemoryProperties()
 		& VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
-		mapped = uniformBuffer->mapMemory(0, neededSize);
+		mapped = lightDataBuffer->mapMemory(0, lightDataStride);
 	} else {
-		mapped = uniformStagingBuffer->mapMemory(0, neededSize);
+		mapped = lightDataStagingBuffer->mapMemory(0, lightDataStride);
+	}
+	LightData& lightData = *((LightData*) ((char*) mapped));
+	lightData.direction = lightSources[0]->getDirection();
+	if (lightDataBuffer->getMemoryProperties()
+		& VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+		lightDataBuffer->unmapMemory();
+	} else {
+		lightDataStagingBuffer->unmapMemory();
+		lightDataBuffer->transfer(*entityDataStagingBuffer, 0, lightDataStride);
+	}
+
+	VkDeviceSize neededSize = entities.size() * entityDataStride;
+	if (entityDataBuffer->getMemoryProperties()
+		& VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+		mapped = entityDataBuffer->mapMemory(0, neededSize);
+	} else {
+		mapped = entityDataStagingBuffer->mapMemory(0, neededSize);
 	}
 	for (int i = 0; i < entities.size(); i++) {
 		const Entity& e = *entities[i];
 		EntityData& data = *((EntityData*) ((char*) mapped
-			+ i * uniformBufferStride));
+			+ i * entityDataStride));
 		glm::mat4 worldMatrix = e.getNode()->getWorldMatrix()
 			* e.getScaleMatrix();
 		data.mvp = camera->getProjectionMatrix() * camera->getViewMatrix()
@@ -155,12 +196,12 @@ void VulkanRenderer::render() {
 			data.color = glm::vec4(0.8f, 0.f, 0.8f, 1.f);
 		}
 	}
-	if (uniformBuffer->getMemoryProperties()
+	if (entityDataBuffer->getMemoryProperties()
 		& VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
-		uniformBuffer->unmapMemory();
+		entityDataBuffer->unmapMemory();
 	} else {
-		uniformStagingBuffer->unmapMemory();
-		uniformBuffer->transfer(*uniformStagingBuffer, 0, neededSize);
+		entityDataStagingBuffer->unmapMemory();
+		entityDataBuffer->transfer(*entityDataStagingBuffer, 0, neededSize);
 	}
 
 	for (int i = 0; i < entities.size(); i++) {
@@ -181,7 +222,7 @@ void VulkanRenderer::render() {
 		vkCmdBindPipeline(window.presentCommandBuffer,
 			VK_PIPELINE_BIND_POINT_GRAPHICS, perMesh->getPipeline());
 
-		uint32_t uniformOffset = i * uniformBufferStride;
+		uint32_t uniformOffset = i * entityDataStride;
 
 		vkCmdBindDescriptorSets(window.presentCommandBuffer,
 			VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
@@ -246,14 +287,16 @@ void VulkanRenderer::render() {
 }
 
 void VulkanRenderer::createDescriptorPool() {
-	VkDescriptorPoolSize poolSize = {};
-	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-	poolSize.descriptorCount = 1;
+	VkDescriptorPoolSize poolSizes[2];
+	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+	poolSizes[0].descriptorCount = 1;
+	poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSizes[1].descriptorCount = 1;
 
 	VkDescriptorPoolCreateInfo poolInfo = {};
 	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	poolInfo.poolSizeCount = 1;
-	poolInfo.pPoolSizes = &poolSize;
+	poolInfo.poolSizeCount = 2;
+	poolInfo.pPoolSizes = poolSizes;
 	poolInfo.maxSets = 1;
 
 	VkResult result = vkCreateDescriptorPool(window.device->getHandle(), &poolInfo, nullptr,
@@ -264,17 +307,23 @@ void VulkanRenderer::createDescriptorPool() {
 }
 
 void VulkanRenderer::createDescriptorSetLayout() {
-    VkDescriptorSetLayoutBinding uboLayoutBinding = {};
-    uboLayoutBinding.binding = 0;
-    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-    uboLayoutBinding.descriptorCount = 1;
-	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    uboLayoutBinding.pImmutableSamplers = nullptr;
+    VkDescriptorSetLayoutBinding layoutBindings[2];
+    layoutBindings[0].binding = 0;
+    layoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    layoutBindings[0].descriptorCount = 1;
+	layoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    layoutBindings[0].pImmutableSamplers = nullptr;
+
+    layoutBindings[1].binding = 1;
+    layoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutBindings[1].descriptorCount = 1;
+    layoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutBindings[1].pImmutableSamplers = nullptr;
 
     VkDescriptorSetLayoutCreateInfo layoutInfo = {};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = 1;
-    layoutInfo.pBindings = &uboLayoutBinding;
+    layoutInfo.bindingCount = 2;
+    layoutInfo.pBindings = layoutBindings;
 
 	VkResult result = vkCreateDescriptorSetLayout(window.device->getHandle(), &layoutInfo,
 		nullptr, &descriptorSetLayout);
@@ -313,21 +362,38 @@ void VulkanRenderer::allocateDescriptorSet() {
 }
 
 void VulkanRenderer::setupDescriptors() {
-	VkDescriptorBufferInfo bufferInfo = {};
-	bufferInfo.buffer = uniformBuffer->getHandle();
-	bufferInfo.offset = 0;
-	bufferInfo.range = uniformBufferStride;
+	VkDescriptorBufferInfo entityBufferInfo = {};
+	entityBufferInfo.buffer = entityDataBuffer->getHandle();
+	entityBufferInfo.offset = 0;
+	entityBufferInfo.range = entityDataStride;
 
-	VkWriteDescriptorSet descriptorWrite = {};
-	descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrite.dstSet = descriptorSet;
-	descriptorWrite.dstBinding = 0;
-	descriptorWrite.dstArrayElement = 0;
-	descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-	descriptorWrite.descriptorCount = 1;
-	descriptorWrite.pBufferInfo = &bufferInfo;
-	descriptorWrite.pImageInfo = nullptr;
-	descriptorWrite.pTexelBufferView = nullptr;
+	VkDescriptorBufferInfo lightBufferInfo = {};
+	lightBufferInfo.buffer = lightDataBuffer->getHandle();
+	lightBufferInfo.offset = 0;
+	lightBufferInfo.range = lightDataStride;
 
-	vkUpdateDescriptorSets(window.device->getHandle(), 1, &descriptorWrite, 0, nullptr);
+	VkWriteDescriptorSet descriptorWrites[2];
+	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites[0].pNext = nullptr;
+	descriptorWrites[0].dstSet = descriptorSet;
+	descriptorWrites[0].dstBinding = 0;
+	descriptorWrites[0].dstArrayElement = 0;
+	descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+	descriptorWrites[0].descriptorCount = 1;
+	descriptorWrites[0].pBufferInfo = &entityBufferInfo;
+	descriptorWrites[0].pImageInfo = nullptr;
+	descriptorWrites[0].pTexelBufferView = nullptr;
+
+	descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites[1].pNext = nullptr;
+	descriptorWrites[1].dstSet = descriptorSet;
+	descriptorWrites[1].dstBinding = 1;
+	descriptorWrites[1].dstArrayElement = 0;
+	descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	descriptorWrites[1].descriptorCount = 1;
+	descriptorWrites[1].pBufferInfo = &lightBufferInfo;
+	descriptorWrites[1].pImageInfo = nullptr;
+	descriptorWrites[1].pTexelBufferView = nullptr;
+
+	vkUpdateDescriptorSets(window.device->getHandle(), 2, descriptorWrites, 0, nullptr);
 }
