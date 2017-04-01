@@ -12,7 +12,8 @@ size(size),
 buffer(VK_NULL_HANDLE),
 device(device),
 memoryProperties(optimalMemoryProperties),
-memory(VK_NULL_HANDLE)
+memory(VK_NULL_HANDLE),
+stagingBuffer(nullptr)
 {
 	VkBufferCreateInfo bufferInfo = {};
 	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -64,28 +65,46 @@ memory(VK_NULL_HANDLE)
 	mappedMemory.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
 	mappedMemory.pNext = nullptr;
 	mappedMemory.memory = memory;
+
+	if (!(memoryProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
+		stagingBuffer = new VulkanBuffer(device, size,
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+				| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	}
 }
 
 VulkanBuffer::~VulkanBuffer() {
 	vkFreeMemory(device.getHandle(), memory, nullptr);
 	vkDestroyBuffer(device.getHandle(), buffer, nullptr);
+	if (stagingBuffer) delete stagingBuffer;
 }
 
 void* VulkanBuffer::mapMemory(VkDeviceSize offset, VkDeviceSize size) {
 	void* mapped;
-	VkResult result = vkMapMemory(device.getHandle(), memory, offset, size,
-		0, &mapped);
-	if (result != VK_SUCCESS) {
-		throw runtime_error("Failed to map buffer memory.");
+	if (stagingBuffer) {
+		mapped = stagingBuffer->mapMemory(offset, size);
+	} else {
+		VkResult result = vkMapMemory(device.getHandle(), memory, offset, size,
+			0, &mapped);
+		if (result != VK_SUCCESS) {
+			throw runtime_error("Failed to map buffer memory.");
+		}
+		mappedMemory.offset = offset;
+		mappedMemory.size = size;
 	}
-	mappedMemory.offset = offset;
-	mappedMemory.size = size;
 	return mapped;
 }
 
 void VulkanBuffer::unmapMemory() {
-	vkFlushMappedMemoryRanges(device.getHandle(), 1, &mappedMemory);
-	vkUnmapMemory(device.getHandle(), memory);
+	if (stagingBuffer) {
+		stagingBuffer->unmapMemory();
+		transfer(*stagingBuffer, stagingBuffer->mappedMemory.offset,
+			stagingBuffer->mappedMemory.size);
+	} else {
+		vkFlushMappedMemoryRanges(device.getHandle(), 1, &mappedMemory);
+		vkUnmapMemory(device.getHandle(), memory);
+	}
 }
 
 void VulkanBuffer::transfer(VkDeviceSize offset, VkDeviceSize size,
@@ -93,58 +112,15 @@ void VulkanBuffer::transfer(VkDeviceSize offset, VkDeviceSize size,
 	if (size == VK_WHOLE_SIZE) {
 		size = this->size - offset;
 	}
-	if (memoryProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+	if (stagingBuffer) {
+		void* mapped = stagingBuffer->mapMemory(offset, size);
+		memcpy(mapped, data, size);
+		stagingBuffer->unmapMemory();
+		transfer(*stagingBuffer, offset, size);
+	} else {
 		void* mapped = mapMemory(offset, size);
 		memcpy(mapped, data, size);
 		unmapMemory();
-	} else {
-
-		VulkanBuffer stagingBuffer(device, size,
-			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-				| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-		void* mapped = stagingBuffer.mapMemory(0, VK_WHOLE_SIZE);
-		memcpy(mapped, data, size);
-		stagingBuffer.unmapMemory();
-
-	    VkCommandBufferAllocateInfo allocInfo = {};
-		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		allocInfo.commandPool = device.getTransferCommandPool();
-		allocInfo.commandBufferCount = 1;
-
-	    VkCommandBuffer commandBuffer;
-		vkAllocateCommandBuffers(device.getHandle(), &allocInfo,
-			&commandBuffer);
-
-		VkCommandBufferBeginInfo beginInfo = {};
-		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-		vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-		VkBufferCopy copyRegion = {};
-		copyRegion.srcOffset = 0;
-		copyRegion.dstOffset = offset;
-		copyRegion.size = size;
-
-		vkCmdCopyBuffer(commandBuffer, stagingBuffer.getHandle(), buffer, 1,
-			&copyRegion);
-
-		vkEndCommandBuffer(commandBuffer);
-
-		VkSubmitInfo submitInfo = {};
-		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &commandBuffer;
-
-		vkQueueSubmit(device.getTransferQueue(), 1, &submitInfo,
-			VK_NULL_HANDLE);
-		vkQueueWaitIdle(device.getTransferQueue());
-
-		vkFreeCommandBuffers(device.getHandle(),
-			device.getTransferCommandPool(), 1, &commandBuffer);
 	}
 }
 

@@ -14,8 +14,6 @@ public:
 	void* mapMemory(VkDeviceSize offset, VkDeviceSize size);
 	void unmapMemory();
 	void transfer(VkDeviceSize offset, VkDeviceSize size, void* data);
-	void transfer(const VulkanBuffer& from, VkDeviceSize offset,
-		VkDeviceSize size);
 
 	VkBuffer getHandle() const {
 		return buffer;
@@ -32,6 +30,10 @@ private:
 	VkMemoryPropertyFlags memoryProperties;
 	VkDeviceMemory memory;
 	VkMappedMemoryRange mappedMemory;
+	VulkanBuffer* stagingBuffer;
+
+	void transfer(const VulkanBuffer& from, VkDeviceSize offset,
+		VkDeviceSize size);
 };
 
 #endif

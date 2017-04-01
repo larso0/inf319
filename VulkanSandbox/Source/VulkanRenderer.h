@@ -19,9 +19,7 @@ private:
 	VulkanWindow& window;
 
 	VulkanShaderProgram program;
-	VulkanBuffer* entityDataStagingBuffer;
 	VulkanBuffer* entityDataBuffer;
-	VulkanBuffer* lightDataStagingBuffer;
 	VulkanBuffer* lightDataBuffer;
 	VkDescriptorPool descriptorPool;
 	VkDescriptorSetLayout descriptorSetLayout;

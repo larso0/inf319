@@ -28,7 +28,6 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 	Renderer(),
 	window(window),
 	program(VulkanShaderProgram(*window.device)),
-	entityDataStagingBuffer(nullptr),
 	descriptorPool(VK_NULL_HANDLE),
 	presentCompleteSemaphore(VK_NULL_HANDLE),
 	renderingCompleteSemaphore(VK_NULL_HANDLE)
@@ -57,26 +56,11 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 			| VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
-	if (!(entityDataBuffer->getMemoryProperties()
-		& VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
-		entityDataStagingBuffer = new VulkanBuffer(*window.device,
-			entityDataBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-				| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-	}
-
 	lightDataBuffer = new VulkanBuffer(*window.device, lightDataStride,
 		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 			| VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-
-	if (!(lightDataBuffer->getMemoryProperties() & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
-		lightDataStagingBuffer = new VulkanBuffer(*window.device,
-			lightDataStride, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-				| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-	}
 
 	createDescriptorPool();
 	createDescriptorSetLayout();
@@ -97,9 +81,7 @@ VulkanRenderer::~VulkanRenderer() {
 	vkDestroyDescriptorSetLayout(window.device->getHandle(), descriptorSetLayout, nullptr);
 	vkDestroyDescriptorPool(window.device->getHandle(), descriptorPool, nullptr);
 	delete entityDataBuffer;
-	if (entityDataStagingBuffer) delete entityDataStagingBuffer;
 	delete lightDataBuffer;
-	if (lightDataStagingBuffer) delete lightDataStagingBuffer;
 	vkDestroySemaphore(window.device->getHandle(), presentCompleteSemaphore, nullptr);
 	vkDestroySemaphore(window.device->getHandle(), renderingCompleteSemaphore, nullptr);
 }
@@ -157,30 +139,13 @@ void VulkanRenderer::render() {
 		throw runtime_error("No light source.");
 	}
 
-	void* mapped;
-	if (lightDataBuffer->getMemoryProperties()
-		& VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
-		mapped = lightDataBuffer->mapMemory(0, lightDataStride);
-	} else {
-		mapped = lightDataStagingBuffer->mapMemory(0, lightDataStride);
-	}
+	void* mapped = lightDataBuffer->mapMemory(0, lightDataStride);
 	LightData& lightData = *((LightData*) ((char*) mapped));
 	lightData.direction = lightSources[0]->getDirection();
-	if (lightDataBuffer->getMemoryProperties()
-		& VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
-		lightDataBuffer->unmapMemory();
-	} else {
-		lightDataStagingBuffer->unmapMemory();
-		lightDataBuffer->transfer(*lightDataStagingBuffer, 0, lightDataStride);
-	}
+	lightDataBuffer->unmapMemory();
 
 	VkDeviceSize neededSize = entities.size() * entityDataStride;
-	if (entityDataBuffer->getMemoryProperties()
-		& VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
-		mapped = entityDataBuffer->mapMemory(0, neededSize);
-	} else {
-		mapped = entityDataStagingBuffer->mapMemory(0, neededSize);
-	}
+	mapped = entityDataBuffer->mapMemory(0, neededSize);
 	for (int i = 0; i < entities.size(); i++) {
 		const Entity& e = *entities[i];
 		EntityData& data = *((EntityData*) ((char*) mapped
@@ -196,13 +161,7 @@ void VulkanRenderer::render() {
 			data.color = glm::vec4(0.8f, 0.f, 0.8f, 1.f);
 		}
 	}
-	if (entityDataBuffer->getMemoryProperties()
-		& VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
-		entityDataBuffer->unmapMemory();
-	} else {
-		entityDataStagingBuffer->unmapMemory();
-		entityDataBuffer->transfer(*entityDataStagingBuffer, 0, neededSize);
-	}
+	entityDataBuffer->unmapMemory();
 
 	for (int i = 0; i < entities.size(); i++) {
 		const Entity& e = *entities[i];
