@@ -120,8 +120,8 @@ int main(int argc, char** argv) {
 				}
 
 				glm::vec2 motion = window.mouseMotion();
-				yaw -= motion.x * 0.002f;
-				pitch -= motion.y * 0.002f;
+				yaw -= motion.x * 0.005f;
+				pitch -= motion.y * 0.005f;
 
 				cameraNode.setRotation(yaw, glm::vec3(0.f, 1.f, 0.f));
 				cameraNode.rotate(pitch, glm::vec3(1.f, 0.f, 0.f));

@@ -171,7 +171,7 @@ void VulkanRenderer::render() {
 		lightDataBuffer->unmapMemory();
 	} else {
 		lightDataStagingBuffer->unmapMemory();
-		lightDataBuffer->transfer(*entityDataStagingBuffer, 0, lightDataStride);
+		lightDataBuffer->transfer(*lightDataStagingBuffer, 0, lightDataStride);
 	}
 
 	VkDeviceSize neededSize = entities.size() * entityDataStride;
