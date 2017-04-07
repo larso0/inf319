@@ -11,9 +11,9 @@ const char* vertexShaderSource =
 	"in vec3 vertexNormal;\n"
 	"out vec3 fragmentNormal;\n"
 	"uniform mat4 worldViewProjectionMatrix;\n"
-	"uniform mat4 normalMatrix;\n"
+	"uniform mat3 normalMatrix;\n"
 	"void main() {\n"
-	"	fragmentNormal = normalize(normalMatrix * vec4(vertexNormal, 0)).xyz;\n"
+	"	fragmentNormal = normalize(normalMatrix * vertexNormal);\n"
 	"	gl_Position = worldViewProjectionMatrix * vec4(vertexPosition, 1);\n"
 	"}\n";
 
@@ -26,7 +26,7 @@ const char* fragmentShaderSource =
 	"uniform vec3 lightColor;\n"
 	"void main() {\n"
 	"	vec3 light = clamp(dot(lightDirection, fragmentNormal), 0, 1) * lightColor;\n"
-	"	color = fragmentNormal + 0.01*(entityColor * 0.1 + entityColor * light);\n"
+	"	color = entityColor * 0.1 + entityColor * light;\n"
 	"}\n";
 
 static GLuint createShader(GLenum type, const char* source) {
@@ -130,12 +130,12 @@ void GLRenderer::render() {
 			* e->getScaleMatrix();
 		glm::mat4 worldViewProjectionMatrix = camera->getProjectionMatrix()
 			* camera->getViewMatrix() * worldMatrix;
-		glm::mat4 normalMatrix =
-			glm::transpose(glm::inverse(worldMatrix));
+		glm::mat3 normalMatrix =
+			glm::mat3(glm::transpose(glm::inverse(worldMatrix)));
 
 		glUniformMatrix4fv(worldViewProjectionMatrixUniform, 1, GL_FALSE,
 			glm::value_ptr(worldViewProjectionMatrix));
-		glUniformMatrix4fv(normalMatrixUniform, 1, GL_FALSE,
+		glUniformMatrix3fv(normalMatrixUniform, 1, GL_FALSE,
 			glm::value_ptr(normalMatrix));
 		glUniform3fv(entityColorUniform, 1,
 			glm::value_ptr(e->getMaterial()->getColor()));

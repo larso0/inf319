@@ -23,17 +23,20 @@ int main(int argc, char** argv) {
 
 		Mesh cubeMesh = generateCube();
 		IndexedMesh sphereMesh = generateSphere(5);
-		IndexedMesh supriseMesh = loadMesh("../../Assets/teapot.obj");
+		IndexedMesh supriseMesh = loadMesh("../Assets/teapot.obj");
+		IndexedMesh terrainMesh = loadMesh("../Assets/terrain.obj");
 
-		Node cube1;
+		Node terrain;
+		Node cube1(&terrain);
 		Node cube2(&cube1);
 		Node sphere(&cube1);
 		Node suprise(&cube2);
+		cube1.translate(0.f, 30.f, 0.f);
 		cube2.translate(2.f, 0.f, 0.f);
 		cube2.rotate(glm::radians(45.f), glm::vec3(0.f, 1.f, 0.f));
 		sphere.translate(0.f, 2.f, 0.f);
 		suprise.translate(0.f, 5.f, 0.f);
-		cube1.update();
+		terrain.update();
 
 		Material red;
 		red.setColor(1.f, 0.f, 0.f, 1.f);
@@ -42,24 +45,27 @@ int main(int argc, char** argv) {
 		Material blue;
 		blue.setColor(0.f, 0.f, 1.f, 1.f);
 
-		Entity e1(&cubeMesh, &cube1, &red),
-			   e2(&cubeMesh, &cube2, &green),
-			   e3(&sphereMesh, &sphere, &blue),
-			   e4(&supriseMesh, &suprise, &red);
+		Entity e0(&terrainMesh, &terrain, &green),
+			e1(&cubeMesh, &cube1, &red),
+			e2(&cubeMesh, &cube2, &green),
+			e3(&sphereMesh, &sphere, &blue),
+			e4(&supriseMesh, &suprise, &red);
 		e2.setScale(0.2f, 2.f, 0.2f);
 
 		LightSource light;
 		light.setDirection(-0.5f, 1.f, 0.f);
+		light.setColor(0.9f, 0.9f, 0.7f);
 
 		Node cameraNode;
-		cameraNode.translate(0.f, 0.f, 3.f);
+		cameraNode.translate(0.f, 30.f, 3.f);
 		cameraNode.update();
 
 		Camera camera(&cameraNode);
 		camera.setPerspectiveProjection(glm::radians(60.f), 4.f / 3.f, 0.1f,
-			100.f);
+			1000.f);
 		camera.update();
 
+		renderer.addEntity(&e0);
 		renderer.addEntity(&e1);
 		renderer.addEntity(&e2);
 		renderer.addEntity(&e3);

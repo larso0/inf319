@@ -16,6 +16,6 @@ void main() {
     gl_Position = entityData.mvp * vec4(vertexPosition, 1.0);
     gl_Position.z = (gl_Position.z + gl_Position.w) / 2.0;
     gl_Position.y = -gl_Position.y;
-    fragmentNormal = normalize(entityData.normal * vec4(vertexNormal, 0)).xyz;
+    fragmentNormal = normalize(mat3(entityData.normal) * vertexNormal);
     fragmentColor = entityData.color.rgb;
 }
