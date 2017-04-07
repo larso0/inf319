@@ -23,9 +23,10 @@ const char* fragmentShaderSource =
 	"out vec3 color;\n"
 	"uniform vec3 entityColor;\n"
 	"uniform vec3 lightDirection;\n"
+	"uniform vec3 lightColor;\n"
 	"void main() {\n"
-	"	float lightIntensity = clamp(dot(lightDirection, fragmentNormal), 0, 1) * 0.8;\n"
-	"	color = entityColor * (0.2 + lightIntensity);\n"
+	"	vec3 light = clamp(dot(lightDirection, fragmentNormal), 0, 1) * lightColor;\n"
+	"	color = fragmentNormal + 0.01*(entityColor * 0.1 + entityColor * light);\n"
 	"}\n";
 
 static GLuint createShader(GLenum type, const char* source) {
@@ -98,6 +99,7 @@ window(window)
 	normalMatrixUniform = glGetUniformLocation(drawProgram, "normalMatrix");
 	entityColorUniform = glGetUniformLocation(drawProgram, "entityColor");
 	lightDirectionUniform = glGetUniformLocation(drawProgram, "lightDirection");
+	lightColorUniform = glGetUniformLocation(drawProgram, "lightColor");
 	glUseProgram(drawProgram);
 }
 
@@ -139,6 +141,8 @@ void GLRenderer::render() {
 			glm::value_ptr(e->getMaterial()->getColor()));
 		glUniform3fv(lightDirectionUniform, 1,
 			glm::value_ptr(lightSources[0]->getDirection()));
+		glUniform3fv(lightColorUniform, 1,
+			glm::value_ptr(lightSources[0]->getColor()));
 
 		shared_ptr<GLPerMesh> perMesh = meshCache[mesh];
 		perMesh->bind();

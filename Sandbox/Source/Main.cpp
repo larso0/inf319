@@ -22,16 +22,19 @@ int main(int argc, char** argv) {
 		Mesh cubeMesh = generateCube();
 		IndexedMesh sphereMesh = generateSphere(5);
 		IndexedMesh supriseMesh = loadMesh("../Assets/teapot.obj");
+		IndexedMesh terrainMesh = loadMesh("../Assets/terrain.obj");
 
-		Node cube1;
+		Node terrain;
+		Node cube1(&terrain);
 		Node cube2(&cube1);
 		Node sphere(&cube1);
 		Node suprise(&cube2);
+		cube1.translate(0.f, 30.f, 0.f);
 		cube2.translate(2.f, 0.f, 0.f);
 		cube2.rotate(glm::radians(45.f), glm::vec3(0.f, 1.f, 0.f));
 		sphere.translate(0.f, 2.f, 0.f);
 		suprise.translate(0.f, 5.f, 0.f);
-		cube1.update();
+		terrain.update();
 
 		Material red;
 		red.setColor(1.f, 0.f, 0.f, 1.f);
@@ -40,7 +43,8 @@ int main(int argc, char** argv) {
 		Material blue;
 		blue.setColor(0.f, 0.f, 1.f, 1.f);
 
-		Entity e1(&cubeMesh, &cube1, &red),
+		Entity e0(&terrainMesh, &terrain, &green),
+			   e1(&cubeMesh, &cube1, &red),
 			   e2(&cubeMesh, &cube2, &green),
 			   e3(&sphereMesh, &sphere, &blue),
 			   e4(&supriseMesh, &suprise, &red);
@@ -48,16 +52,18 @@ int main(int argc, char** argv) {
 
 		LightSource light;
 		light.setDirection(-0.5f, 1.f, 0.f);
+		light.setColor(0.9f, 0.9f, 0.7f);
 
 		Node cameraNode;
-		cameraNode.translate(0.f, 0.f, 3.f);
+		cameraNode.translate(0.f, 30.f, 3.f);
 		cameraNode.update();
 
 		Camera camera(&cameraNode);
 		camera.setPerspectiveProjection(glm::radians(60.f), 4.f / 3.f, 0.1f,
-			100.f);
+			1000.f);
 		camera.update();
 
+		renderer.addEntity(&e0);
 		renderer.addEntity(&e1);
 		renderer.addEntity(&e2);
 		renderer.addEntity(&e3);
@@ -71,15 +77,15 @@ int main(int argc, char** argv) {
 			renderer.render();
 			glfwPollEvents();
 
+			double seconds = glfwGetTime();
+			float delta = seconds - time;
+			time = seconds;
+
 			if (window.isCursorHidden()) {
 				glm::vec3 cameraDirection = quatTransform(
 					cameraNode.getOrientation(), glm::vec3(0.f, 0.f, -1.f));
 				glm::vec3 cameraRight = quatTransform(
 					cameraNode.getOrientation(), glm::vec3(1.f, 0.f, 0.f));
-
-				double seconds = glfwGetTime();
-				float delta = seconds - time;
-				time = seconds;
 
 				glm::vec3 movement;
 				bool moved = false;
@@ -89,6 +95,12 @@ int main(int argc, char** argv) {
 				bool keyD = window.getKey(Key::D) == KeyAction::Press;
 				bool keyQ = window.getKey(Key::Q) == KeyAction::Press;
 				bool keyE = window.getKey(Key::E) == KeyAction::Press;
+				bool keyH = window.getKey(Key::H) == KeyAction::Press;
+				bool keyJ = window.getKey(Key::J) == KeyAction::Press;
+				bool keyK = window.getKey(Key::K) == KeyAction::Press;
+				bool keyL = window.getKey(Key::L) == KeyAction::Press;
+				bool keyU = window.getKey(Key::U) == KeyAction::Press;
+				bool keyI = window.getKey(Key::I) == KeyAction::Press;
 				if (keyW && !keyS) {
 					movement += cameraDirection;
 					moved = true;
@@ -116,6 +128,34 @@ int main(int argc, char** argv) {
 						* 2.f;
 					cameraNode.translate(movement);
 				}
+
+				moved = false;
+				movement = glm::vec3();
+				if (keyH && !keyL) {
+					movement.x = 1;
+					moved = true;
+				} else if (keyL && !keyH) {
+					movement.x = -1;
+					moved = true;
+				}
+				if (keyJ && !keyK) {
+					movement.y = -1;
+					moved = true;
+				} else if (keyK && !keyJ) {
+					movement.y = 1;
+					moved = true;
+				}
+				if (keyU && !keyI) {
+					suprise.rotate(-delta, glm::vec3(0.f, 1.f, 0.f));
+				} else if (keyI && !keyU) {
+					suprise.rotate(delta, glm::vec3(0.f, 1.f, 0.f));
+				}
+
+				if (moved) {
+					movement = glm::normalize(movement) * delta;
+					suprise.translate(movement);
+				}
+				suprise.update();
 
 				glm::vec2 motion = window.mouseMotion();
 				yaw -= motion.x * 0.005f;
