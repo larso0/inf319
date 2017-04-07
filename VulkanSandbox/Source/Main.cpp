@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
 
 		Mesh cubeMesh = generateCube();
 		IndexedMesh sphereMesh = generateSphere(5);
-		IndexedMesh supriseMesh = loadMesh("../Assets/teapot.obj");
+		IndexedMesh supriseMesh = loadMesh("../Assets/monkey.obj");
 		IndexedMesh terrainMesh = loadMesh("../Assets/terrain.obj");
 
 		Node terrain;
@@ -79,15 +79,15 @@ int main(int argc, char** argv) {
 			renderer.render();
 			glfwPollEvents();
 
+			double seconds = glfwGetTime();
+			float delta = seconds - time;
+			time = seconds;
+
 			if (window.isCursorHidden()) {
 				glm::vec3 cameraDirection = quatTransform(
 					cameraNode.getOrientation(), glm::vec3(0.f, 0.f, -1.f));
 				glm::vec3 cameraRight = quatTransform(
 					cameraNode.getOrientation(), glm::vec3(1.f, 0.f, 0.f));
-
-				double seconds = glfwGetTime();
-				float delta = seconds - time;
-				time = seconds;
 
 				glm::vec3 movement;
 				bool moved = false;
@@ -97,24 +97,33 @@ int main(int argc, char** argv) {
 				bool keyD = window.getKey(Key::D) == KeyAction::Press;
 				bool keyQ = window.getKey(Key::Q) == KeyAction::Press;
 				bool keyE = window.getKey(Key::E) == KeyAction::Press;
+				bool keyH = window.getKey(Key::H) == KeyAction::Press;
+				bool keyJ = window.getKey(Key::J) == KeyAction::Press;
+				bool keyK = window.getKey(Key::K) == KeyAction::Press;
+				bool keyL = window.getKey(Key::L) == KeyAction::Press;
+				bool keyU = window.getKey(Key::U) == KeyAction::Press;
+				bool keyI = window.getKey(Key::I) == KeyAction::Press;
 				if (keyW && !keyS) {
 					movement += cameraDirection;
 					moved = true;
-				} else if (keyS && !keyW) {
+				}
+				else if (keyS && !keyW) {
 					movement -= cameraDirection;
 					moved = true;
 				}
 				if (keyA && !keyD) {
 					movement -= cameraRight;
 					moved = true;
-				} else if (keyD && !keyA) {
+				}
+				else if (keyD && !keyA) {
 					movement += cameraRight;
 					moved = true;
 				}
 				if (keyQ && !keyE) {
 					movement -= glm::vec3(0.f, 1.f, 0.f);
 					moved = true;
-				} else if (keyE && !keyQ) {
+				}
+				else if (keyE && !keyQ) {
 					movement += glm::vec3(0.f, 1.f, 0.f);
 					moved = true;
 				}
@@ -124,6 +133,37 @@ int main(int argc, char** argv) {
 						* 2.f;
 					cameraNode.translate(movement);
 				}
+
+				moved = false;
+				movement = glm::vec3();
+				if (keyH && !keyL) {
+					movement.x = 1;
+					moved = true;
+				}
+				else if (keyL && !keyH) {
+					movement.x = -1;
+					moved = true;
+				}
+				if (keyJ && !keyK) {
+					movement.y = -1;
+					moved = true;
+				}
+				else if (keyK && !keyJ) {
+					movement.y = 1;
+					moved = true;
+				}
+				if (keyU && !keyI) {
+					suprise.rotate(-delta, glm::vec3(0.f, 1.f, 0.f));
+				}
+				else if (keyI && !keyU) {
+					suprise.rotate(delta, glm::vec3(0.f, 1.f, 0.f));
+				}
+
+				if (moved) {
+					movement = glm::normalize(movement) * delta;
+					suprise.translate(movement);
+				}
+				suprise.update();
 
 				glm::vec2 motion = window.mouseMotion();
 				yaw -= motion.x * 0.005f;
