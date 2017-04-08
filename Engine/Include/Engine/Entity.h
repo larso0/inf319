@@ -1,9 +1,9 @@
 #ifndef ENGINE_ENTITY_H
 #define ENGINE_ENTITY_H
 
-#include <Engine/Mesh.h>
-#include <Engine/Node.h>
-#include <Engine/Material.h>
+#include "Mesh.h"
+#include "Node.h"
+#include "Material.h"
 
 namespace Engine {
 	class Entity {

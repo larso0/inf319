@@ -1,9 +1,9 @@
 #ifndef ENGINE_RENDERER_H
 #define ENGINE_RENDERER_H
 
-#include <Engine/Camera.h>
-#include <Engine/Entity.h>
-#include <Engine/LightSource.h>
+#include "Camera.h"
+#include "Entity.h"
+#include "LightSource.h"
 #include <vector>
 
 namespace Engine {

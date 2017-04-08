@@ -1,8 +1,8 @@
 #ifndef ENGINE_MESHGENERATION_H
 #define ENGINE_MESHGENERATION_H
 
-#include <Engine/IndexedMesh.h>
-#include <Engine/Mesh.h>
+#include "IndexedMesh.h"
+#include "Mesh.h"
 #include <string>
 
 namespace Engine {

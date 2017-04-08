@@ -1,7 +1,7 @@
 #ifndef ENGINE_LIGHTSOURCE_H
 #define ENGINE_LIGHTSOURCE_H
 
-#include <Engine/Math.h>
+#include "Math.h"
 
 namespace Engine {
 	class LightSource {

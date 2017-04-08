@@ -1,7 +1,7 @@
 #ifndef ENGINE_INDEXEDMESH_H
 #define ENGINE_INDEXEDMESH_H
 
-#include <Engine/Mesh.h>
+#include "Mesh.h"
 
 namespace Engine {
 	class IndexedMesh : public Mesh {

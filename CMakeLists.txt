@@ -7,6 +7,24 @@ set(MIDDLEWARE_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/Middleware/Include)
 set(ENGINE_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/Engine/Include)
 set(ENGINE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/Engine/Source)
 set(ENGINE_SRC_FILES
+	${ENGINE_INCLUDE}/Engine/Camera.h
+	${ENGINE_INCLUDE}/Engine/Context.h
+	${ENGINE_INCLUDE}/Engine/Entity.h
+	${ENGINE_INCLUDE}/Engine/EventHandler.h
+	${ENGINE_INCLUDE}/Engine/IndexedMesh.h
+	${ENGINE_INCLUDE}/Engine/Input.h
+	${ENGINE_INCLUDE}/Engine/KeyEventHandler.h
+	${ENGINE_INCLUDE}/Engine/LightSource.h
+	${ENGINE_INCLUDE}/Engine/Material.h
+	${ENGINE_INCLUDE}/Engine/Math.h
+	${ENGINE_INCLUDE}/Engine/Mesh.h
+	${ENGINE_INCLUDE}/Engine/MeshGeneration.h
+	${ENGINE_INCLUDE}/Engine/MouseEventHandler.h
+	${ENGINE_INCLUDE}/Engine/Node.h
+	${ENGINE_INCLUDE}/Engine/Renderer.h
+	${ENGINE_INCLUDE}/Engine/Vertex.h
+	${ENGINE_INCLUDE}/Engine/Window.h
+	${ENGINE_INCLUDE}/Engine/WindowEventHandler.h
 	${ENGINE_SRC}/Input.cpp
 	${ENGINE_SRC}/Math.cpp
 	${ENGINE_SRC}/MeshGeneration.cpp
@@ -18,9 +36,13 @@ set(SANDBOX_SRC ${CMAKE_CURRENT_SOURCE_DIR}/Sandbox/Source)
 set(SANDBOX_SRC_FILES
 	${SANDBOX_SRC}/glad.c
 	${SANDBOX_SRC}/GLContext.cpp
+	${SANDBOX_SRC}/GLContext.h
 	${SANDBOX_SRC}/GLPerMesh.cpp
+	${SANDBOX_SRC}/GLPerMesh.h
 	${SANDBOX_SRC}/GLRenderer.cpp
+	${SANDBOX_SRC}/GLRenderer.h
 	${SANDBOX_SRC}/GLWindow.cpp
+	${SANDBOX_SRC}/GLWindow.h
 	${SANDBOX_SRC}/Main.cpp
 )
 
@@ -28,12 +50,20 @@ set(VULKANSANDBOX_SRC ${CMAKE_CURRENT_SOURCE_DIR}/VulkanSandbox/Source)
 set(VULKANSANDBOX_SRC_FILES
 	${VULKANSANDBOX_SRC}/Main.cpp
 	${VULKANSANDBOX_SRC}/VulkanBuffer.cpp
+	${VULKANSANDBOX_SRC}/VulkanBuffer.h
 	${VULKANSANDBOX_SRC}/VulkanContext.cpp
+	${VULKANSANDBOX_SRC}/VulkanContext.h
 	${VULKANSANDBOX_SRC}/VulkanDevice.cpp
+	${VULKANSANDBOX_SRC}/VulkanDevice.h
+	${VULKANSANDBOX_SRC}/VulkanIncludes.h
 	${VULKANSANDBOX_SRC}/VulkanPerMesh.cpp
+	${VULKANSANDBOX_SRC}/VulkanPerMesh.h
 	${VULKANSANDBOX_SRC}/VulkanRenderer.cpp
+	${VULKANSANDBOX_SRC}/VulkanRenderer.h
 	${VULKANSANDBOX_SRC}/VulkanShaderProgram.cpp
+	${VULKANSANDBOX_SRC}/VulkanShaderProgram.h
 	${VULKANSANDBOX_SRC}/VulkanWindow.cpp
+	${VULKANSANDBOX_SRC}/VulkanWindow.h
 )
 set(VULKANSANDBOX_SHADER_SRC ${CMAKE_CURRENT_SOURCE_DIR}/VulkanSandbox/Shaders)
 set(VULKANSANDBOX_SHADER_SRC_FILES
@@ -43,6 +73,8 @@ set(VULKANSANDBOX_SHADER_SRC_FILES
 
 if(CMAKE_COMPILER_IS_GNUCXX)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+elseif(MSVC)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 endif()
 
 find_package(GLFW REQUIRED)

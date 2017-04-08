@@ -1,7 +1,7 @@
 #ifndef ENGINE_NODE_H
 #define ENGINE_NODE_H
 
-#include <Engine/Math.h>
+#include "Math.h"
 #include <vector>
 
 namespace Engine {

@@ -1,7 +1,7 @@
 #ifndef ENGINE_MATERIAL_H
 #define ENGINE_MATERIAL_H
 
-#include <Engine/Math.h>
+#include "Math.h"
 
 namespace Engine {
 	class Material {

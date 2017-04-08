@@ -19,7 +19,6 @@ GLWindow::~GLWindow() {
 }
 
 void GLWindow::init() {
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 	handle = glfwCreateWindow(width, height, "Sandbox", nullptr, nullptr);
 	if (!handle) {
 		throw runtime_error("Failed to create window.");
@@ -33,9 +32,14 @@ void GLWindow::init() {
 	}
 
 	glfwSetWindowUserPointer(handle, this);
-	glfwSetWindowSizeCallback(handle, windowSizeCallback);
 	glfwSetKeyCallback(handle, keyCallback);
-	glfwSetCursorPosCallback(handle, mousePositionCallback);
+	glfwSetCharCallback(handle, charCallback);
+	glfwSetMouseButtonCallback(handle, mouseButtonCallback);
+	glfwSetCursorPosCallback(handle, cursorPositionCallback);
+	glfwSetCursorEnterCallback(handle, cursorEnterCallback);
+	glfwSetWindowSizeCallback(handle, windowSizeCallback);
+	glfwSetDropCallback(handle, fileDropCallback);
+
 	double x, y;
 	glfwGetCursorPos(handle, &x, &y);
 	mouse.position = glm::vec2(x, y);
@@ -62,7 +66,6 @@ void GLWindow::resize(uint32_t w, uint32_t h) {
 	height = h;
 	if (handle) {
 		glfwSetWindowSize(handle, w, h);
-		glViewport(0, 0, w, h);
 	}
 }
 
@@ -111,31 +114,104 @@ Engine::Renderer& GLWindow::getRenderer() {
 	return *renderer;
 }
 
-void GLWindow::windowSizeCallback(GLFWwindow* handle, int w, int h) {
+void GLWindow::keyCallback(GLFWwindow* handle, int key, int, int action, int mods) {
 	GLWindow& window = *((GLWindow*)glfwGetWindowUserPointer(handle));
-	window.width = w;
-	window.height = h;
-	glViewport(0, 0, w, h);
-}
-
-void GLWindow::keyCallback(GLFWwindow* handle, int key, int, int action, int) {
-	Window& window = *((Window*)glfwGetWindowUserPointer(handle));
-	if (action != GLFW_RELEASE) return;
-	switch(key) {
-	case GLFW_KEY_ESCAPE:
-		window.toggleCursorHidden();
+	switch (action) {
+	case GLFW_RELEASE:
+		for (Engine::KeyEventHandler* handler : window.keyEventHandlers) {
+			handler->keyRelease(static_cast<Engine::Key>(key),
+				static_cast<Engine::Modifier>(mods));
+		}
+		break;
+	case GLFW_PRESS:
+		for (Engine::KeyEventHandler* handler : window.keyEventHandlers) {
+			handler->keyPress(static_cast<Engine::Key>(key),
+				static_cast<Engine::Modifier>(mods));
+		}
+		break;
+	case GLFW_REPEAT:
+		for (Engine::KeyEventHandler* handler : window.keyEventHandlers) {
+			handler->keyRelease(static_cast<Engine::Key>(key),
+				static_cast<Engine::Modifier>(mods));
+		}
 		break;
 	default:
 		break;
 	}
 }
 
-void GLWindow::mousePositionCallback(GLFWwindow* handle, double x, double y) {
+void GLWindow::charCallback(GLFWwindow* handle, unsigned int codepoint) {
 	GLWindow& window = *((GLWindow*)glfwGetWindowUserPointer(handle));
+	for (Engine::KeyEventHandler* handler : window.keyEventHandlers) {
+		handler->charInput((uint32_t)codepoint);
+	}
+}
+
+void GLWindow::mouseButtonCallback(GLFWwindow* handle, int button, int action, int mods) {
+	GLWindow& window = *((GLWindow*)glfwGetWindowUserPointer(handle));
+	switch (action) {
+	case GLFW_RELEASE:
+		for (Engine::MouseEventHandler* handler : window.mouseEventHandlers) {
+			handler->buttonRelease(static_cast<Engine::MouseButton>(button),
+				static_cast<Engine::Modifier>(mods));
+		}
+		break;
+	case GLFW_PRESS:
+		for (Engine::MouseEventHandler* handler : window.mouseEventHandlers) {
+			handler->buttonPress(static_cast<Engine::MouseButton>(button),
+				static_cast<Engine::Modifier>(mods));
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+void GLWindow::cursorPositionCallback(GLFWwindow* handle, double x, double y) {
+	GLWindow& window = *((GLWindow*)glfwGetWindowUserPointer(handle));
+
+	for (Engine::MouseEventHandler* handler : window.mouseEventHandlers) {
+		handler->cursorPosition(x, y);
+	}
+
 	glm::vec2 position(x, y);
 	glm::vec2 motion = position - window.mouse.position;
 	if (window.mouse.hidden) {
 		window.mouse.motion = position - window.mouse.position;
 	}
 	window.mouse.position = position;
+}
+
+void GLWindow::cursorEnterCallback(GLFWwindow* handle, int entered) {
+	GLWindow& window = *((GLWindow*)glfwGetWindowUserPointer(handle));
+	if (entered) {
+		for (Engine::MouseEventHandler* handler : window.mouseEventHandlers) {
+			handler->cursorEnter();
+		}
+	} else {
+		for (Engine::MouseEventHandler* handler : window.mouseEventHandlers) {
+			handler->cursorLeave();
+		}
+	}
+}
+
+void GLWindow::windowSizeCallback(GLFWwindow* handle, int w, int h) {
+	GLWindow& window = *((GLWindow*)glfwGetWindowUserPointer(handle));
+	for (Engine::WindowEventHandler* handler : window.windowEventHandlers) {
+		handler->resize(w, h);
+	}
+	window.width = (uint32_t)w;
+	window.height = (uint32_t)h;
+	glViewport(0, 0, w, h);
+}
+
+void GLWindow::fileDropCallback(GLFWwindow* handle, int count, const char** cPaths) {
+	GLWindow& window = *((GLWindow*)glfwGetWindowUserPointer(handle));
+	vector<string> paths;
+	for (int i = 0; i < count; i++) {
+		paths.push_back(string(cPaths[i]));
+	}
+	for (Engine::WindowEventHandler* handler : window.windowEventHandlers) {
+		handler->fileDrop(paths);
+	}
 }

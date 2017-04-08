@@ -1,7 +1,7 @@
 #ifndef ENGINE_MESH_H
 #define ENGINE_MESH_H
 
-#include <Engine/Vertex.h>
+#include "Vertex.h"
 #include <vector>
 
 namespace Engine {

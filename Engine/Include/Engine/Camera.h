@@ -1,7 +1,7 @@
 #ifndef ENGINE_CAMERA_H
 #define ENGINE_CAMERA_H
 
-#include <Engine/Node.h>
+#include "Node.h"
 
 namespace Engine {
 	class Camera {

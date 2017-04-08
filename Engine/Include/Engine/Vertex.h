@@ -1,7 +1,7 @@
 #ifndef ENGINE_VERTEX_H
 #define ENGINE_VERTEX_H
 
-#include <Engine/Math.h>
+#include "Math.h"
 
 namespace Engine {
 	class Vertex {

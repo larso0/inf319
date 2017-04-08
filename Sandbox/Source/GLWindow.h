@@ -42,9 +42,13 @@ private:
 
 	Engine::Renderer* renderer;
 
-	static void windowSizeCallback(GLFWwindow* window, int width, int height);
 	static void keyCallback(GLFWwindow* handle, int key, int, int action, int);
-	static void mousePositionCallback(GLFWwindow* handle, double x, double y);
+	static void charCallback(GLFWwindow* handle, unsigned int codepoint);
+	static void mouseButtonCallback(GLFWwindow* handle, int button, int action, int mods);
+	static void cursorPositionCallback(GLFWwindow* handle, double x, double y);
+	static void cursorEnterCallback(GLFWwindow* handle, int entered);
+	static void windowSizeCallback(GLFWwindow* window, int width, int height);
+	static void fileDropCallback(GLFWwindow* handle, int count, const char** paths);
 };
 
 #endif
