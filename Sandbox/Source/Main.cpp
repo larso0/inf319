@@ -90,6 +90,8 @@ int main(int argc, char** argv) {
 		suprise.translate(0.f, 5.f, 0.f);
 		terrain.update();
 
+		Material darkGreen;
+		darkGreen.setColor(0.f, 0.5f, 0.f, 1.f);
 		Material red;
 		red.setColor(1.f, 0.f, 0.f, 1.f);
 		Material green;
@@ -97,7 +99,7 @@ int main(int argc, char** argv) {
 		Material blue;
 		blue.setColor(0.f, 0.f, 1.f, 1.f);
 
-		Entity e0(&terrainMesh, &terrain, &green),
+		Entity e0(&terrainMesh, &terrain, &darkGreen),
 			   e1(&cubeMesh, &cube1, &red),
 			   e2(&cubeMesh, &cube2, &green),
 			   e3(&sphereMesh, &sphere, &blue),
