@@ -22,6 +22,7 @@ set(ENGINE_SRC_FILES
 	${ENGINE_INCLUDE}/Engine/MouseEventHandler.h
 	${ENGINE_INCLUDE}/Engine/Node.h
 	${ENGINE_INCLUDE}/Engine/Renderer.h
+	${ENGINE_INCLUDE}/Engine/Texture.h
 	${ENGINE_INCLUDE}/Engine/Vertex.h
 	${ENGINE_INCLUDE}/Engine/Window.h
 	${ENGINE_INCLUDE}/Engine/WindowEventHandler.h
@@ -29,6 +30,7 @@ set(ENGINE_SRC_FILES
 	${ENGINE_SRC}/Math.cpp
 	${ENGINE_SRC}/MeshGeneration.cpp
 	${ENGINE_SRC}/Node.cpp
+	${ENGINE_SRC}/Texture.cpp
 	${ENGINE_SRC}/Vertex.cpp
 )
 
