@@ -29,7 +29,6 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 	window(window),
 	program(VulkanShaderProgram(*window.device)),
 	descriptorPool(VK_NULL_HANDLE),
-	presentCompleteSemaphore(VK_NULL_HANDLE),
 	renderingCompleteSemaphore(VK_NULL_HANDLE)
 {
 	vector<char> vertexShaderCode = readFile("Shaders/Simple.vert.spv");
@@ -71,8 +70,6 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 	VkSemaphoreCreateInfo semaphoreCreateInfo = {
 		VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, 0, 0 };
 	vkCreateSemaphore(window.device->getHandle(), &semaphoreCreateInfo, nullptr,
-		&presentCompleteSemaphore);
-	vkCreateSemaphore(window.device->getHandle(), &semaphoreCreateInfo, nullptr,
 		&renderingCompleteSemaphore);
 }
 
@@ -82,7 +79,6 @@ VulkanRenderer::~VulkanRenderer() {
 	vkDestroyDescriptorPool(window.device->getHandle(), descriptorPool, nullptr);
 	delete entityDataBuffer;
 	delete lightDataBuffer;
-	vkDestroySemaphore(window.device->getHandle(), presentCompleteSemaphore, nullptr);
 	vkDestroySemaphore(window.device->getHandle(), renderingCompleteSemaphore, nullptr);
 }
 
@@ -92,43 +88,23 @@ void VulkanRenderer::render() {
 		throw runtime_error("No camera set.");
 	}
 #endif
-
-	uint32_t nextImageIdx;
-	vkAcquireNextImageKHR(window.device->getHandle(), window.swapchain, UINT64_MAX,
-		presentCompleteSemaphore, VK_NULL_HANDLE, &nextImageIdx);
+	
+	window.swapchain->nextImage();
 
 	VkCommandBufferBeginInfo beginInfo = {};
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
 	vkBeginCommandBuffer(window.presentCommandBuffer, &beginInfo);
-
-	// change image layout from VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-	// to VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-	VkImageMemoryBarrier layoutTransitionBarrier = {};
-	layoutTransitionBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	layoutTransitionBarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-	layoutTransitionBarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
-		| VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	layoutTransitionBarrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-	layoutTransitionBarrier.newLayout =
-		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	layoutTransitionBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	layoutTransitionBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	layoutTransitionBarrier.image = window.presentImages[nextImageIdx];
-	VkImageSubresourceRange resourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1,
-		0, 1 };
-	layoutTransitionBarrier.subresourceRange = resourceRange;
-
-	vkCmdPipelineBarrier(window.presentCommandBuffer,
-		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
-		0, nullptr, 0, nullptr, 1, &layoutTransitionBarrier);
+	
+	window.swapchain->transitionColor(window.presentCommandBuffer);
 
 	VkClearValue clearValue[] = { { 0.5f, 0.5f, 0.5f, 1.f }, { 1.f, 0.f } };
 	VkRenderPassBeginInfo renderPassBeginInfo = {};
 	renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	renderPassBeginInfo.renderPass = window.renderPass;
-	renderPassBeginInfo.framebuffer = window.framebuffers[nextImageIdx];
+	renderPassBeginInfo.framebuffer =
+		window.framebuffers[window.swapchain->getCurrentImageIndex()];
 	renderPassBeginInfo.renderArea = {0, 0, window.getWidth(), window.getHeight()};
 	renderPassBeginInfo.clearValueCount = 2;
 	renderPassBeginInfo.pClearValues = clearValue;
@@ -194,22 +170,8 @@ void VulkanRenderer::render() {
 	}
 
 	vkCmdEndRenderPass(window.presentCommandBuffer);
-
-	VkImageMemoryBarrier prePresentBarrier = {};
-	prePresentBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	prePresentBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	prePresentBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-	prePresentBarrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	prePresentBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-	prePresentBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	prePresentBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	prePresentBarrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-	prePresentBarrier.image = window.presentImages[nextImageIdx];
-
-	vkCmdPipelineBarrier(window.presentCommandBuffer,
-		VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-		VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1,
-		&prePresentBarrier);
+	
+	window.swapchain->transitionPresent(window.presentCommandBuffer);
 
 	vkEndCommandBuffer(window.presentCommandBuffer);
 
@@ -218,12 +180,14 @@ void VulkanRenderer::render() {
 	fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	vkCreateFence(window.device->getHandle(), &fenceCreateInfo, nullptr, &renderFence);
 
+	VkSemaphore presentSemaphore = window.swapchain->getPresentSemaphore();
+	
 	VkPipelineStageFlags waitStageMash =
 		{ VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT };
 	VkSubmitInfo submitInfo = {};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.waitSemaphoreCount = 1;
-	submitInfo.pWaitSemaphores = &presentCompleteSemaphore;
+	submitInfo.pWaitSemaphores = &presentSemaphore;
 	submitInfo.pWaitDstStageMask = &waitStageMash;
 	submitInfo.commandBufferCount = 1;
 	submitInfo.pCommandBuffers = &window.presentCommandBuffer;
@@ -233,16 +197,8 @@ void VulkanRenderer::render() {
 
 	vkWaitForFences(window.device->getHandle(), 1, &renderFence, VK_TRUE, UINT64_MAX);
 	vkDestroyFence(window.device->getHandle(), renderFence, nullptr);
-
-	VkPresentInfoKHR presentInfo = {};
-	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	presentInfo.waitSemaphoreCount = 1;
-	presentInfo.pWaitSemaphores = &renderingCompleteSemaphore;
-	presentInfo.swapchainCount = 1;
-	presentInfo.pSwapchains = &window.swapchain;
-	presentInfo.pImageIndices = &nextImageIdx;
-	presentInfo.pResults = nullptr;
-	vkQueuePresentKHR(window.device->getPresentQueue(), &presentInfo);
+	
+	window.swapchain->present(renderingCompleteSemaphore);
 }
 
 void VulkanRenderer::createDescriptorPool() {

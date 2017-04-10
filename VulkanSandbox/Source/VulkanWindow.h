@@ -3,6 +3,7 @@
 
 #include "VulkanContext.h"
 #include "VulkanDevice.h"
+#include "VulkanSwapchain.h"
 #include <Engine/Window.h>
 #include <Engine/Math.h>
 #include <vector>
@@ -22,12 +23,7 @@ public:
 		return glfwWindowShouldClose(handle);
 	}
 
-	void resize(uint32_t w, uint32_t h) override {
-		viewport.width = w;
-		viewport.height = h;
-		scissor.extent.width = w;
-		scissor.extent.height = h;
-	}
+	void resize(uint32_t w, uint32_t h) override;
 
 	glm::vec2 mouseMotion() override {
 		glm::vec2 motion = mouse.motion;
@@ -76,11 +72,8 @@ private:
 	VkViewport viewport;
 	VkRect2D scissor;
 	VulkanDevice* device;
-	VkFormat colorFormat;
-	VkSwapchainKHR swapchain;
+	VulkanSwapchain* swapchain;
 	VkCommandBuffer presentCommandBuffer;
-	std::vector<VkImage> presentImages;
-	std::vector<VkImageView> presentImageViews;
 	VkImage depthImage;
 	VkDeviceMemory depthImageMemory;
 	VkImageView depthImageView;
@@ -97,8 +90,6 @@ private:
 
 	VulkanRenderer* renderer;
 
-	void createSwapchain();
-	void setupSwapchainImages();
 	void createDepthBuffer();
 	void createRenderPass();
 	void createFramebuffers();

@@ -62,6 +62,8 @@ set(VULKANSANDBOX_SRC_FILES
 	${VULKANSANDBOX_SRC}/VulkanRenderer.h
 	${VULKANSANDBOX_SRC}/VulkanShaderProgram.cpp
 	${VULKANSANDBOX_SRC}/VulkanShaderProgram.h
+	${VULKANSANDBOX_SRC}/VulkanSwapchain.cpp
+	${VULKANSANDBOX_SRC}/VulkanSwapchain.h
 	${VULKANSANDBOX_SRC}/VulkanWindow.cpp
 	${VULKANSANDBOX_SRC}/VulkanWindow.h
 )
@@ -94,6 +96,10 @@ add_library(Engine STATIC ${ENGINE_SRC_FILES})
 add_executable(Sandbox ${SANDBOX_SRC_FILES})
 add_dependencies(Sandbox Engine)
 target_link_libraries(Sandbox ${GLFW_LIBRARY} ${OPENGL_LIBRARIES} Engine)
+
+if(CMAKE_COMPILER_IS_GNUCXX)
+	target_link_libraries(Sandbox dl)
+endif()
 
 add_executable(VulkanSandbox ${VULKANSANDBOX_SRC_FILES})
 add_dependencies(VulkanSandbox Engine)

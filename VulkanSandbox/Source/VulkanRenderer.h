@@ -37,7 +37,7 @@ private:
 	};
 
 	VkDeviceSize entityDataStride, lightDataStride;
-	VkSemaphore presentCompleteSemaphore, renderingCompleteSemaphore;
+	VkSemaphore renderingCompleteSemaphore;
 
 	std::unordered_map<const Engine::Mesh*, std::shared_ptr<VulkanPerMesh>>
 	meshCache;
