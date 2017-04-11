@@ -57,6 +57,8 @@ set(VULKANSANDBOX_SRC_FILES
 	${VULKANSANDBOX_SRC}/VulkanContext.h
 	${VULKANSANDBOX_SRC}/VulkanDevice.cpp
 	${VULKANSANDBOX_SRC}/VulkanDevice.h
+	${VULKANSANDBOX_SRC}/VulkanImage.cpp
+	${VULKANSANDBOX_SRC}/VulkanImage.h
 	${VULKANSANDBOX_SRC}/VulkanIncludes.h
 	${VULKANSANDBOX_SRC}/VulkanPerMesh.cpp
 	${VULKANSANDBOX_SRC}/VulkanPerMesh.h

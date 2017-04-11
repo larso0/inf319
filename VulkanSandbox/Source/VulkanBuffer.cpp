@@ -65,13 +65,6 @@ stagingBuffer(nullptr)
 	mappedMemory.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
 	mappedMemory.pNext = nullptr;
 	mappedMemory.memory = memory;
-
-	if (!(memoryProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
-		stagingBuffer = new VulkanBuffer(device, size,
-			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-				| VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-	}
 }
 
 VulkanBuffer::~VulkanBuffer() {
@@ -82,7 +75,14 @@ VulkanBuffer::~VulkanBuffer() {
 
 void* VulkanBuffer::mapMemory(VkDeviceSize offset, VkDeviceSize size) {
 	void* mapped;
-	if (stagingBuffer) {
+	if (!(memoryProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
+		if (!stagingBuffer) {
+			stagingBuffer =
+				new VulkanBuffer(device, this->size,
+								 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+								 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+								 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		}
 		mapped = stagingBuffer->mapMemory(offset, size);
 	} else {
 		VkResult result = vkMapMemory(device.getHandle(), memory, offset, size,
