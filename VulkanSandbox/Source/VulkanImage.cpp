@@ -7,14 +7,14 @@ using namespace std;
 VulkanImage::VulkanImage(const VulkanDevice& device, uint32_t w, uint32_t h,
 						 VkFormat format, VkImageTiling tiling,
 						 VkImageUsageFlags usage,
-						 VkMemoryPropertyFlags properties) :
+						 VkMemoryPropertyFlags properties, VkImageLayout initialLayout) :
 	device(device),
 	handle(VK_NULL_HANDLE),
 	width(w),
 	height(h),
 	format(format),
 	tiling(tiling),
-	layout(VK_IMAGE_LAYOUT_PREINITIALIZED),
+	layout(initialLayout),
 	memoryProperties(properties),
 	memory(VK_NULL_HANDLE)
 {
@@ -78,6 +78,8 @@ void VulkanImage::recordTransition(VkImageLayout to, VkCommandBuffer cmdBuffer) 
 	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	barrier.image = handle;
 	barrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+	barrier.srcAccessMask = 0;
+	barrier.dstAccessMask = 0;
 	
 	if (barrier.oldLayout == VK_IMAGE_LAYOUT_PREINITIALIZED &&
 		barrier.newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
@@ -91,6 +93,10 @@ void VulkanImage::recordTransition(VkImageLayout to, VkCommandBuffer cmdBuffer) 
 			   barrier.newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
 		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	} else if (barrier.newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+		barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+								VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 	} else {
 		throw runtime_error("Unsupported image layout transition.");
 	}

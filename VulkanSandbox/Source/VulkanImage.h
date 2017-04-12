@@ -8,7 +8,8 @@ class VulkanImage {
 public:
 	VulkanImage(const VulkanDevice& device, uint32_t w, uint32_t h,
 				VkFormat format, VkImageTiling tiling,
-				VkImageUsageFlags usage, VkMemoryPropertyFlags properties);
+				VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
+				VkImageLayout initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED);
 	~VulkanImage();
 	
 	VkImage getHandle() const {
