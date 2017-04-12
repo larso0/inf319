@@ -68,6 +68,8 @@ set(VULKANSANDBOX_SRC_FILES
 	${VULKANSANDBOX_SRC}/VulkanShaderProgram.h
 	${VULKANSANDBOX_SRC}/VulkanSwapchain.cpp
 	${VULKANSANDBOX_SRC}/VulkanSwapchain.h
+	${VULKANSANDBOX_SRC}/VulkanUtil.cpp
+	${VULKANSANDBOX_SRC}/VulkanUtil.h
 	${VULKANSANDBOX_SRC}/VulkanWindow.cpp
 	${VULKANSANDBOX_SRC}/VulkanWindow.h
 )
