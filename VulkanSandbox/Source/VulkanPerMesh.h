@@ -6,38 +6,24 @@
 #include <vulkan/vulkan.h>
 
 #include "VulkanBuffer.h"
-#include "VulkanShaderProgram.h"
+#include "VulkanDevice.h"
 
 class VulkanPerMesh {
 public:
-	VulkanPerMesh();
+	VulkanPerMesh(const VulkanDevice& device, const Engine::Mesh* mesh);
 	virtual ~VulkanPerMesh();
 
-	void init(const VulkanShaderProgram& shaderProgram,
-		const Engine::Mesh* mesh,
-		const VkPhysicalDeviceMemoryProperties& memoryProperties,
-		VkViewport* viewport, VkRect2D* scissor,
-		VkRenderPass renderPass, VkPipelineLayout pipelineLayout);
 	void record(VkCommandBuffer cmdBuffer);
 
-	VkPipeline getPipeline() const {
-		return pipeline;
-	}
-
 private:
-	VkDevice device;
+	const VulkanDevice& device;
 
 	std::vector<VulkanBuffer*> buffers;
 	VkPrimitiveTopology topology;
-	VkPipeline pipeline;
 	bool indexed;
 	uint32_t elementCount;
 
-	void createBuffers(const VulkanDevice& device, const Engine::Mesh* mesh);
-	void createPipeline(
-		const std::vector<VkPipelineShaderStageCreateInfo>& stages,
-		VkViewport* viewport, VkRect2D* scissor, VkRenderPass renderPass,
-		VkPipelineLayout pipelineLayout);
+	void createBuffers(const Engine::Mesh* mesh);
 };
 
 #endif

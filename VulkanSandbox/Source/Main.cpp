@@ -34,6 +34,7 @@ int main(int argc, char** argv) {
 		green.setColor(0.f, 1.f, 0.f, 1.f);
 		Material blue;
 		blue.setColor(0.f, 0.f, 1.f, 1.f);
+		blue.setTexture((Texture*)1);
 
 		Geometry greenTerrain(&terrainMesh, &darkGreen);
 		Geometry redCube(&cubeMesh, &red);

@@ -5,6 +5,7 @@
 #include "VulkanPerMesh.h"
 #include "VulkanShaderProgram.h"
 #include "VulkanTexture.h"
+#include "VulkanPipeline.h"
 #include <Engine/Renderer.h>
 #include <unordered_map>
 #include <memory>
@@ -19,14 +20,14 @@ public:
 private:
 	VulkanWindow& window;
 
-	VulkanShaderProgram program;
+	VulkanShaderProgram program, texturedProgram;
+	VulkanPipeline* simplePipeline, * texturedPipeline;
 	VulkanBuffer* entityDataBuffer;
 	VulkanBuffer* lightDataBuffer;
 	VkDescriptorPool descriptorPool;
 	VkDescriptorSetLayout descriptorSetLayout;
-	VkDescriptorSetLayout texturedDescriptorSetLayout;
 	VkPipelineLayout pipelineLayout;
-	VkDescriptorSet descriptorSets[2];
+	VkDescriptorSet descriptorSet;
 
 	struct EntityData {
 		glm::mat4 mvp;
@@ -49,9 +50,9 @@ private:
 	meshCache;
 
 	void createDescriptorPool();
-	void createDescriptorSetLayouts();
+	void createDescriptorSetLayout();
 	void createPipelineLayout();
-	void allocateDescriptorSets();
+	void allocateDescriptorSet();
 	void createSampler();
 	void setupDescriptors();
 };
