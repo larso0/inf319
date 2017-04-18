@@ -14,8 +14,7 @@ VulkanWindow::VulkanWindow(VulkanContext& context) :
 	device(nullptr),
 	swapchain(nullptr),
 	presentCommandBuffer(VK_NULL_HANDLE),
-	depthImage(VK_NULL_HANDLE),
-	depthImageMemory(VK_NULL_HANDLE),
+	depthImage(nullptr),
 	depthImageView(VK_NULL_HANDLE),
 	renderPass(VK_NULL_HANDLE),
 	mouse({false, glm::vec2(), glm::vec2()}),
@@ -85,9 +84,8 @@ void VulkanWindow::close() {
 		vkDestroyFramebuffer(device->getHandle(), b, nullptr);
 	}
 	vkDestroyRenderPass(device->getHandle(), renderPass, nullptr);
-	vkFreeMemory(device->getHandle(), depthImageMemory, nullptr);
 	vkDestroyImageView(device->getHandle(), depthImageView, nullptr);
-	vkDestroyImage(device->getHandle(), depthImage, nullptr);
+	delete depthImage;
 	delete swapchain;
 	delete device;
 	vkDestroySurfaceKHR(context.getInstance(), surface, nullptr);
@@ -107,123 +105,34 @@ Renderer& VulkanWindow::getRenderer() {
 }
 
 void VulkanWindow::createDepthBuffer() {
-	VkImageCreateInfo imageCreateInfo = {};
-	imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
-	imageCreateInfo.format = VK_FORMAT_D16_UNORM;
-	imageCreateInfo.extent = { getWidth(), getHeight(), 1 };
-	imageCreateInfo.mipLevels = 1;
-	imageCreateInfo.arrayLayers = 1;
-	imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-	imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-	imageCreateInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-	imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	imageCreateInfo.queueFamilyIndexCount = 0;
-	imageCreateInfo.pQueueFamilyIndices = nullptr;
-	imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	depthImage = new VulkanImage(*device, getWidth(), getHeight(),
+		VK_FORMAT_D16_UNORM, VK_IMAGE_TILING_OPTIMAL,
+		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_LAYOUT_UNDEFINED);
 
-	VkResult result = vkCreateImage(device->getHandle(), &imageCreateInfo, nullptr,
-		&depthImage);
-	if (result != VK_SUCCESS) {
-		throw runtime_error("Failed to create depth image.");
-	}
+	depthImage->transition(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
-	VkMemoryRequirements memoryRequirements = {};
-	vkGetImageMemoryRequirements(device->getHandle(), depthImage, &memoryRequirements);
-
-	VkMemoryAllocateInfo imageAllocateInfo = {};
-	imageAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	imageAllocateInfo.allocationSize = memoryRequirements.size;
-	
-	imageAllocateInfo.memoryTypeIndex = device->findMemoryType(
-		memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-	result = vkAllocateMemory(device->getHandle(), &imageAllocateInfo, nullptr,
-		&depthImageMemory);
-	if (result != VK_SUCCESS) {
-		throw runtime_error("Failed to allocate depth buffer.");
-	}
-
-
-	result = vkBindImageMemory(device->getHandle(), depthImage, depthImageMemory, 0);
-	if (result != VK_SUCCESS) {
-		throw runtime_error("Failed to bind depth buffer to image.");
-	}
-
-	VkCommandBufferBeginInfo beginInfo = {};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-	vkBeginCommandBuffer(presentCommandBuffer, &beginInfo);
-
-	VkImageMemoryBarrier layoutTransitionBarrier = {};
-	layoutTransitionBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	layoutTransitionBarrier.srcAccessMask = 0;
-	layoutTransitionBarrier.dstAccessMask =
-		VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
-		VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-	layoutTransitionBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	layoutTransitionBarrier.newLayout =
-		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-	layoutTransitionBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	layoutTransitionBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	layoutTransitionBarrier.image = depthImage;
-	VkImageSubresourceRange resourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1,
-		0, 1 };
-	layoutTransitionBarrier.subresourceRange = resourceRange;
-
-	vkCmdPipelineBarrier(presentCommandBuffer,
-		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
-		0, nullptr, 0, nullptr, 1, &layoutTransitionBarrier);
-
-	vkEndCommandBuffer(presentCommandBuffer);
-
-	VkFenceCreateInfo fenceCreateInfo = {};
-	fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-	VkFence submitFence;
-	vkCreateFence(device->getHandle(), &fenceCreateInfo, nullptr, &submitFence);
-
-	VkPipelineStageFlags waitStageMask[] = {
-		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-	VkSubmitInfo submitInfo = { };
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.waitSemaphoreCount = 0;
-	submitInfo.pWaitSemaphores = nullptr;
-	submitInfo.pWaitDstStageMask = waitStageMask;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &presentCommandBuffer;
-	submitInfo.signalSemaphoreCount = 0;
-	submitInfo.pSignalSemaphores = nullptr;
-	result = vkQueueSubmit(device->getPresentQueue(), 1, &submitInfo, submitFence);
-
-	vkWaitForFences(device->getHandle(), 1, &submitFence, VK_TRUE, UINT64_MAX);
-	vkDestroyFence(device->getHandle(), submitFence, nullptr);
-	vkResetCommandBuffer(presentCommandBuffer, 0);
-
-	VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-	VkImageViewCreateInfo imageViewCreateInfo = { };
+	VkImageViewCreateInfo imageViewCreateInfo = {};
 	imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	imageViewCreateInfo.image = depthImage;
+	imageViewCreateInfo.image = depthImage->getHandle();
 	imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	imageViewCreateInfo.format = imageCreateInfo.format;
+	imageViewCreateInfo.format = VK_FORMAT_D16_UNORM;
 	imageViewCreateInfo.components = {
 		VK_COMPONENT_SWIZZLE_IDENTITY,
 		VK_COMPONENT_SWIZZLE_IDENTITY,
 		VK_COMPONENT_SWIZZLE_IDENTITY,
 		VK_COMPONENT_SWIZZLE_IDENTITY
 	};
-	imageViewCreateInfo.subresourceRange.aspectMask = aspectMask;
+	imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 	imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
 	imageViewCreateInfo.subresourceRange.levelCount = 1;
 	imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
 	imageViewCreateInfo.subresourceRange.layerCount = 1;
 
-	result = vkCreateImageView(device->getHandle(), &imageViewCreateInfo, nullptr,
+	VkResult result = vkCreateImageView(device->getHandle(), &imageViewCreateInfo, nullptr,
 		&depthImageView);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to create depth image view.");
 	}
-
 }
 
 void VulkanWindow::createRenderPass() {

@@ -4,6 +4,7 @@
 #include "VulkanContext.h"
 #include "VulkanDevice.h"
 #include "VulkanSwapchain.h"
+#include "VulkanImage.h"
 #include <Engine/Window.h>
 #include <Engine/Math.h>
 #include <vector>
@@ -74,8 +75,7 @@ private:
 	VulkanDevice* device;
 	VulkanSwapchain* swapchain;
 	VkCommandBuffer presentCommandBuffer;
-	VkImage depthImage;
-	VkDeviceMemory depthImageMemory;
+	VulkanImage* depthImage;
 	VkImageView depthImageView;
 	VkRenderPass renderPass;
 	std::vector<VkFramebuffer> framebuffers;

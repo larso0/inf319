@@ -156,7 +156,7 @@ void VulkanImage::unmapMemory() {
 void VulkanImage::transition(VkImageLayout to) {
 	VkCommandBuffer cmdBuffer =
 		beginSingleUseCmdBuffer(device.getHandle(),
-								device.getComputeCommandPool());
+								device.getPresentCommandPool());
 	
 	recordTransition(to, cmdBuffer);
 	
@@ -167,7 +167,7 @@ void VulkanImage::transition(VkImageLayout to) {
 void VulkanImage::transfer(VulkanImage& from) {
 	VkCommandBuffer cmdBuffer =
 		beginSingleUseCmdBuffer(device.getHandle(),
-								device.getComputeCommandPool());
+								device.getPresentCommandPool());
 	
 	recordTransfer(from, cmdBuffer);
 	
@@ -178,7 +178,7 @@ void VulkanImage::transfer(VulkanImage& from) {
 void VulkanImage::transferTransition(VulkanImage& from, VkImageLayout to) {
 	VkCommandBuffer cmdBuffer =
 		beginSingleUseCmdBuffer(device.getHandle(),
-								device.getComputeCommandPool());
+								device.getPresentCommandPool());
 	
 	recordTransfer(from, cmdBuffer);
 	recordTransition(to, cmdBuffer);
