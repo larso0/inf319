@@ -109,6 +109,8 @@ void VulkanImage::recordTransition(VkImageLayout to, VkCommandBuffer cmdBuffer) 
 	vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
 						 VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr,
 						 0, nullptr, 1, &barrier);
+
+	layout = to;
 }
 
 void VulkanImage::recordTransfer(VulkanImage& from, VkCommandBuffer cmdBuffer) {

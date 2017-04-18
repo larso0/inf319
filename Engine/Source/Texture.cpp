@@ -11,6 +11,11 @@ namespace Engine {
 	{
 		int w, h, n;
 		pixelData = stbi_load(file.c_str(), &w, &h, &n, 0);
+		if (pixelData != nullptr && n == 3) {
+			stbi_image_free(pixelData);
+			pixelData = stbi_load(file.c_str(), &w, &h, &n, STBI_rgb_alpha);
+			n = 4;
+		}
 		if (pixelData == nullptr) {
 			throw runtime_error("Failed to load image \"" + file + "\".");
 		}

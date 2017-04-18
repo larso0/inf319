@@ -12,7 +12,6 @@ VulkanTexture::VulkanTexture(const VulkanDevice& device, Texture* texture) :
 	switch (texture->getFormat()) {
 	case Texture::Format::Grey: format = VK_FORMAT_R8_UNORM; break;
 	case Texture::Format::GreyAlpha: format = VK_FORMAT_R8G8_UNORM; break;
-	case Texture::Format::RGB: format = VK_FORMAT_R8G8B8_UNORM; break;
 	case Texture::Format::RGBA: format = VK_FORMAT_R8G8B8A8_UNORM; break;
 	}
 	
@@ -45,10 +44,6 @@ VulkanTexture::VulkanTexture(const VulkanDevice& device, Texture* texture) :
 	VkCommandBuffer cmdBuffer = beginSingleUseCmdBuffer(
 		device.getHandle(), device.getPresentCommandPool());
 	
-	stagingImage->recordTransition(
-		VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, cmdBuffer);
-	image->recordTransition(
-		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, cmdBuffer);
 	image->recordTransfer(*stagingImage, cmdBuffer);
 	image->recordTransition(
 		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, cmdBuffer);

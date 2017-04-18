@@ -10,7 +10,6 @@ namespace Engine {
 		enum class Format : int {
 			Grey = 1,
 			GreyAlpha = 2,
-			RGB = 3,
 			RGBA = 4
 		};
 		

@@ -52,8 +52,8 @@ private:
 	void createDescriptorSetLayouts();
 	void createPipelineLayout();
 	void allocateDescriptorSets();
-	void setupDescriptors();
 	void createSampler();
+	void setupDescriptors();
 };
 
 #endif

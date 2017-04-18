@@ -68,24 +68,25 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 	createDescriptorSetLayouts();
 	createPipelineLayout();
 	allocateDescriptorSets();
+	createSampler();
 	setupDescriptors();
 
 	VkSemaphoreCreateInfo semaphoreCreateInfo = {
 		VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, 0, 0 };
 	vkCreateSemaphore(window.device->getHandle(), &semaphoreCreateInfo, nullptr,
 		&renderingCompleteSemaphore);
-	
-	createSampler();
 }
 
 VulkanRenderer::~VulkanRenderer() {
 	vkDestroyPipelineLayout(window.device->getHandle(), pipelineLayout, nullptr);
 	vkDestroyDescriptorSetLayout(window.device->getHandle(), descriptorSetLayout, nullptr);
+	vkDestroyDescriptorSetLayout(window.device->getHandle(), texturedDescriptorSetLayout, nullptr);
 	vkDestroyDescriptorPool(window.device->getHandle(), descriptorPool, nullptr);
 	delete entityDataBuffer;
 	delete lightDataBuffer;
 	delete texture;
 	vkDestroySemaphore(window.device->getHandle(), renderingCompleteSemaphore, nullptr);
+	vkDestroySampler(window.device->getHandle(), textureSampler, nullptr);
 }
 
 void VulkanRenderer::render() {
@@ -111,7 +112,8 @@ void VulkanRenderer::render() {
 	renderPassBeginInfo.renderPass = window.renderPass;
 	renderPassBeginInfo.framebuffer =
 		window.framebuffers[window.swapchain->getCurrentImageIndex()];
-	renderPassBeginInfo.renderArea = {0, 0, window.getWidth(), window.getHeight()};
+	renderPassBeginInfo.renderArea =
+		{ { 0, 0 }, { window.getWidth(), window.getHeight() } };
 	renderPassBeginInfo.clearValueCount = 2;
 	renderPassBeginInfo.pClearValues = clearValue;
 	vkCmdBeginRenderPass(window.presentCommandBuffer, &renderPassBeginInfo,
@@ -167,7 +169,7 @@ void VulkanRenderer::render() {
 
 		vkCmdBindDescriptorSets(window.presentCommandBuffer,
 			VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
-			&descriptorSet, 1, &uniformOffset);
+			&descriptorSets[0], 1, &uniformOffset);
 
 		vkCmdSetViewport(window.presentCommandBuffer, 0, 1, &window.viewport);
 		vkCmdSetScissor(window.presentCommandBuffer, 0, 1, &window.scissor);
@@ -220,7 +222,7 @@ void VulkanRenderer::createDescriptorPool() {
 	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	poolInfo.poolSizeCount = 3;
 	poolInfo.pPoolSizes = poolSizes;
-	poolInfo.maxSets = 1;
+	poolInfo.maxSets = 2;
 
 	VkResult result = vkCreateDescriptorPool(window.device->getHandle(), &poolInfo, nullptr,
 		&descriptorPool);
@@ -308,6 +310,32 @@ void VulkanRenderer::allocateDescriptorSets() {
 	}
 }
 
+void VulkanRenderer::createSampler() {
+	VkSamplerCreateInfo samplerInfo = {};
+	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	samplerInfo.magFilter = VK_FILTER_LINEAR;
+	samplerInfo.minFilter = VK_FILTER_LINEAR;
+	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.anisotropyEnable = VK_TRUE;
+	samplerInfo.maxAnisotropy = 16;
+	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	samplerInfo.unnormalizedCoordinates = VK_FALSE;
+	samplerInfo.compareEnable = VK_FALSE;
+	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	samplerInfo.mipLodBias = 0.0f;
+	samplerInfo.minLod = 0.0f;
+	samplerInfo.maxLod = 0.0f;
+
+	VkResult result = vkCreateSampler(
+		window.device->getHandle(), &samplerInfo, nullptr, &textureSampler);
+	if (result != VK_SUCCESS) {
+
+	}
+}
+
 void VulkanRenderer::setupDescriptors() {
 	VkDescriptorBufferInfo entityBufferInfo = {};
 	entityBufferInfo.buffer = entityDataBuffer->getHandle();
@@ -382,30 +410,4 @@ void VulkanRenderer::setupDescriptors() {
 	descriptorWrites[4].pTexelBufferView = nullptr;
 	
 	vkUpdateDescriptorSets(window.device->getHandle(), 5, descriptorWrites, 0, nullptr);
-}
-
-void VulkanRenderer::createSampler() {
-	VkSamplerCreateInfo samplerInfo = {};
-	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	samplerInfo.magFilter = VK_FILTER_LINEAR;
-	samplerInfo.minFilter = VK_FILTER_LINEAR;
-	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.anisotropyEnable = VK_TRUE;
-	samplerInfo.maxAnisotropy = 16;
-	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-	samplerInfo.unnormalizedCoordinates = VK_FALSE;
-	samplerInfo.compareEnable = VK_FALSE;
-	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	samplerInfo.mipLodBias = 0.0f;
-	samplerInfo.minLod = 0.0f;
-	samplerInfo.maxLod = 0.0f;
-	
-	VkResult result = vkCreateSampler(
-		window.device->getHandle(), &samplerInfo, nullptr, &textureSampler);
-	if (result != VK_SUCCESS) {
-		
-	}
 }
