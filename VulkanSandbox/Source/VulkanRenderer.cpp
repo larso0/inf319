@@ -60,17 +60,22 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 			| VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+	
+	Engine::Texture tex("../Assets/texture.jpg");
+	texture = new VulkanTexture(*window.device, &tex);
 
 	createDescriptorPool();
-	createDescriptorSetLayout();
+	createDescriptorSetLayouts();
 	createPipelineLayout();
-	allocateDescriptorSet();
+	allocateDescriptorSets();
 	setupDescriptors();
 
 	VkSemaphoreCreateInfo semaphoreCreateInfo = {
 		VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, 0, 0 };
 	vkCreateSemaphore(window.device->getHandle(), &semaphoreCreateInfo, nullptr,
 		&renderingCompleteSemaphore);
+	
+	createSampler();
 }
 
 VulkanRenderer::~VulkanRenderer() {
@@ -79,6 +84,7 @@ VulkanRenderer::~VulkanRenderer() {
 	vkDestroyDescriptorPool(window.device->getHandle(), descriptorPool, nullptr);
 	delete entityDataBuffer;
 	delete lightDataBuffer;
+	delete texture;
 	vkDestroySemaphore(window.device->getHandle(), renderingCompleteSemaphore, nullptr);
 }
 
@@ -131,8 +137,8 @@ void VulkanRenderer::render() {
 		data.mvp = camera->getProjectionMatrix() * camera->getViewMatrix()
 			* worldMatrix;
 		data.normal = glm::transpose(glm::inverse(worldMatrix));
-		if (e.getMaterial()) {
-			data.color = e.getMaterial()->getColor();
+		if (e.getGeometry()->getMaterial()) {
+			data.color = e.getGeometry()->getMaterial()->getColor();
 		} else {
 			data.color = glm::vec4(0.8f, 0.f, 0.8f, 1.f);
 		}
@@ -142,7 +148,7 @@ void VulkanRenderer::render() {
 	for (int i = 0; i < entities.size(); i++) {
 		const Entity& e = *entities[i];
 
-		const Mesh* mesh = e.getMesh();
+		const Mesh* mesh = e.getGeometry()->getMesh();
 		auto found = meshCache.find(mesh);
 		if (found == meshCache.end()) {
 			shared_ptr<VulkanPerMesh> perMesh = make_shared<VulkanPerMesh>();
@@ -202,15 +208,17 @@ void VulkanRenderer::render() {
 }
 
 void VulkanRenderer::createDescriptorPool() {
-	VkDescriptorPoolSize poolSizes[2];
+	VkDescriptorPoolSize poolSizes[3];
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-	poolSizes[0].descriptorCount = 1;
+	poolSizes[0].descriptorCount = 2;
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	poolSizes[1].descriptorCount = 1;
+	poolSizes[1].descriptorCount = 2;
+	poolSizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	poolSizes[2].descriptorCount = 1;
 
 	VkDescriptorPoolCreateInfo poolInfo = {};
 	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	poolInfo.poolSizeCount = 2;
+	poolInfo.poolSizeCount = 3;
 	poolInfo.pPoolSizes = poolSizes;
 	poolInfo.maxSets = 1;
 
@@ -221,8 +229,8 @@ void VulkanRenderer::createDescriptorPool() {
 	}
 }
 
-void VulkanRenderer::createDescriptorSetLayout() {
-    VkDescriptorSetLayoutBinding layoutBindings[2];
+void VulkanRenderer::createDescriptorSetLayouts() {
+    VkDescriptorSetLayoutBinding layoutBindings[3];
     layoutBindings[0].binding = 0;
     layoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     layoutBindings[0].descriptorCount = 1;
@@ -245,13 +253,32 @@ void VulkanRenderer::createDescriptorSetLayout() {
     if (result != VK_SUCCESS) {
     	throw runtime_error("Failed to create descriptor set layout.");
     }
+    
+    layoutBindings[2].binding = 2;
+	layoutBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	layoutBindings[2].descriptorCount = 1;
+	layoutBindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	layoutBindings[2].pImmutableSamplers = nullptr;
+	
+	layoutInfo.bindingCount = 3;
+	
+	result = vkCreateDescriptorSetLayout(window.device->getHandle(), &layoutInfo,
+		nullptr, &texturedDescriptorSetLayout);
+    if (result != VK_SUCCESS) {
+    	throw runtime_error("Failed to create textured descriptor set layout.");
+    }
 }
 
 void VulkanRenderer::createPipelineLayout() {
+	VkDescriptorSetLayout setLayouts[] = {
+		descriptorSetLayout,
+		texturedDescriptorSetLayout
+	};
+	
 	VkPipelineLayoutCreateInfo layoutCreateInfo = {};
 	layoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	layoutCreateInfo.setLayoutCount = 1;
-	layoutCreateInfo.pSetLayouts = &descriptorSetLayout;
+	layoutCreateInfo.setLayoutCount = 2;
+	layoutCreateInfo.pSetLayouts = setLayouts;
 	layoutCreateInfo.pushConstantRangeCount = 0;
 	layoutCreateInfo.pPushConstantRanges = nullptr;
 
@@ -262,15 +289,20 @@ void VulkanRenderer::createPipelineLayout() {
 	}
 }
 
-void VulkanRenderer::allocateDescriptorSet() {
+void VulkanRenderer::allocateDescriptorSets() {
+	VkDescriptorSetLayout setLayouts[] = {
+		descriptorSetLayout,
+		texturedDescriptorSetLayout
+	};
+	
 	VkDescriptorSetAllocateInfo allocInfo = {};
 	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	allocInfo.descriptorPool = descriptorPool;
-	allocInfo.descriptorSetCount = 1;
-	allocInfo.pSetLayouts = &descriptorSetLayout;
+	allocInfo.descriptorSetCount = 2;
+	allocInfo.pSetLayouts = setLayouts;
 
-	VkResult result = vkAllocateDescriptorSets(window.device->getHandle(), &allocInfo,
-		&descriptorSet);
+	VkResult result = vkAllocateDescriptorSets(
+		window.device->getHandle(), &allocInfo, descriptorSets);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to allocate description set.");
 	}
@@ -286,11 +318,16 @@ void VulkanRenderer::setupDescriptors() {
 	lightBufferInfo.buffer = lightDataBuffer->getHandle();
 	lightBufferInfo.offset = 0;
 	lightBufferInfo.range = lightDataStride;
+	
+	VkDescriptorImageInfo imageInfo = {};
+	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	imageInfo.imageView = texture->getImageView();
+	imageInfo.sampler = textureSampler;
 
-	VkWriteDescriptorSet descriptorWrites[2];
+	VkWriteDescriptorSet descriptorWrites[5];
 	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	descriptorWrites[0].pNext = nullptr;
-	descriptorWrites[0].dstSet = descriptorSet;
+	descriptorWrites[0].dstSet = descriptorSets[0];
 	descriptorWrites[0].dstBinding = 0;
 	descriptorWrites[0].dstArrayElement = 0;
 	descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
@@ -301,7 +338,7 @@ void VulkanRenderer::setupDescriptors() {
 
 	descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	descriptorWrites[1].pNext = nullptr;
-	descriptorWrites[1].dstSet = descriptorSet;
+	descriptorWrites[1].dstSet = descriptorSets[0];
 	descriptorWrites[1].dstBinding = 1;
 	descriptorWrites[1].dstArrayElement = 0;
 	descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -309,6 +346,66 @@ void VulkanRenderer::setupDescriptors() {
 	descriptorWrites[1].pBufferInfo = &lightBufferInfo;
 	descriptorWrites[1].pImageInfo = nullptr;
 	descriptorWrites[1].pTexelBufferView = nullptr;
+	
+	descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites[2].pNext = nullptr;
+	descriptorWrites[2].dstSet = descriptorSets[1];
+	descriptorWrites[2].dstBinding = 0;
+	descriptorWrites[2].dstArrayElement = 0;
+	descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+	descriptorWrites[2].descriptorCount = 1;
+	descriptorWrites[2].pBufferInfo = &entityBufferInfo;
+	descriptorWrites[2].pImageInfo = nullptr;
+	descriptorWrites[2].pTexelBufferView = nullptr;
 
-	vkUpdateDescriptorSets(window.device->getHandle(), 2, descriptorWrites, 0, nullptr);
+	descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites[3].pNext = nullptr;
+	descriptorWrites[3].dstSet = descriptorSets[1];
+	descriptorWrites[3].dstBinding = 1;
+	descriptorWrites[3].dstArrayElement = 0;
+	descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	descriptorWrites[3].descriptorCount = 1;
+	descriptorWrites[3].pBufferInfo = &lightBufferInfo;
+	descriptorWrites[3].pImageInfo = nullptr;
+	descriptorWrites[3].pTexelBufferView = nullptr;
+	
+	descriptorWrites[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites[4].pNext = nullptr;
+	descriptorWrites[4].dstSet = descriptorSets[1];
+	descriptorWrites[4].dstBinding = 2;
+	descriptorWrites[4].dstArrayElement = 0;
+	descriptorWrites[4].descriptorType =
+		VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	descriptorWrites[4].descriptorCount = 1;
+	descriptorWrites[4].pBufferInfo = nullptr;
+	descriptorWrites[4].pImageInfo = &imageInfo;
+	descriptorWrites[4].pTexelBufferView = nullptr;
+	
+	vkUpdateDescriptorSets(window.device->getHandle(), 5, descriptorWrites, 0, nullptr);
+}
+
+void VulkanRenderer::createSampler() {
+	VkSamplerCreateInfo samplerInfo = {};
+	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	samplerInfo.magFilter = VK_FILTER_LINEAR;
+	samplerInfo.minFilter = VK_FILTER_LINEAR;
+	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.anisotropyEnable = VK_TRUE;
+	samplerInfo.maxAnisotropy = 16;
+	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	samplerInfo.unnormalizedCoordinates = VK_FALSE;
+	samplerInfo.compareEnable = VK_FALSE;
+	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	samplerInfo.mipLodBias = 0.0f;
+	samplerInfo.minLod = 0.0f;
+	samplerInfo.maxLod = 0.0f;
+	
+	VkResult result = vkCreateSampler(
+		window.device->getHandle(), &samplerInfo, nullptr, &textureSampler);
+	if (result != VK_SUCCESS) {
+		
+	}
 }

@@ -9,6 +9,7 @@ set(ENGINE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/Engine/Source)
 set(ENGINE_SRC_FILES
 	${ENGINE_INCLUDE}/Engine/Camera.h
 	${ENGINE_INCLUDE}/Engine/Context.h
+	${ENGINE_INCLUDE}/Engine/Geometry.h
 	${ENGINE_INCLUDE}/Engine/Entity.h
 	${ENGINE_INCLUDE}/Engine/EventHandler.h
 	${ENGINE_INCLUDE}/Engine/IndexedMesh.h
@@ -68,6 +69,8 @@ set(VULKANSANDBOX_SRC_FILES
 	${VULKANSANDBOX_SRC}/VulkanShaderProgram.h
 	${VULKANSANDBOX_SRC}/VulkanSwapchain.cpp
 	${VULKANSANDBOX_SRC}/VulkanSwapchain.h
+	${VULKANSANDBOX_SRC}/VulkanTexture.cpp
+	${VULKANSANDBOX_SRC}/VulkanTexture.h
 	${VULKANSANDBOX_SRC}/VulkanUtil.cpp
 	${VULKANSANDBOX_SRC}/VulkanUtil.h
 	${VULKANSANDBOX_SRC}/VulkanWindow.cpp

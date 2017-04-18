@@ -69,6 +69,11 @@ VulkanImage::VulkanImage(const VulkanDevice& device, uint32_t w, uint32_t h,
 	size = requirements.size;
 }
 
+VulkanImage::~VulkanImage() {
+	vkFreeMemory(device.getHandle(), memory, nullptr);
+	vkDestroyImage(device.getHandle(), handle, nullptr);
+}
+
 void VulkanImage::recordTransition(VkImageLayout to, VkCommandBuffer cmdBuffer) {
 	VkImageMemoryBarrier barrier = {};
 	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;

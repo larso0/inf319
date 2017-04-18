@@ -118,7 +118,7 @@ void GLRenderer::render() {
 #endif
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	for (const Entity* e : entities) {
-		const Mesh* mesh = e->getMesh();
+		const Mesh* mesh = e->getGeometry()->getMesh();
 		auto result = meshCache.find(mesh);
 		if (result == meshCache.end()) {
 			shared_ptr<GLPerMesh> perMesh = make_shared<GLPerMesh>(mesh,
@@ -138,7 +138,7 @@ void GLRenderer::render() {
 		glUniformMatrix3fv(normalMatrixUniform, 1, GL_FALSE,
 			glm::value_ptr(normalMatrix));
 		glUniform3fv(entityColorUniform, 1,
-			glm::value_ptr(e->getMaterial()->getColor()));
+			glm::value_ptr(e->getGeometry()->getMaterial()->getColor()));
 		glUniform3fv(lightDirectionUniform, 1,
 			glm::value_ptr(lightSources[0]->getDirection()));
 		glUniform3fv(lightColorUniform, 1,

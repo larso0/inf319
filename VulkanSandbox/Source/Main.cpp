@@ -26,6 +26,21 @@ int main(int argc, char** argv) {
 		IndexedMesh supriseMesh = loadMesh("../Assets/monkey.obj");
 		IndexedMesh terrainMesh = loadMesh("../Assets/terrain.obj");
 
+		Material darkGreen;
+		darkGreen.setColor(0.f, 0.5f, 0.f, 1.f);
+		Material red;
+		red.setColor(1.f, 0.f, 0.f, 1.f);
+		Material green;
+		green.setColor(0.f, 1.f, 0.f, 1.f);
+		Material blue;
+		blue.setColor(0.f, 0.f, 1.f, 1.f);
+
+		Geometry greenTerrain(&terrainMesh, &darkGreen);
+		Geometry redCube(&cubeMesh, &red);
+		Geometry greenCube(&cubeMesh, &green);
+		Geometry blueSphere(&sphereMesh, &blue);
+		Geometry redSuprise(&supriseMesh, &red);
+
 		Node terrain;
 		Node cube1(&terrain);
 		Node cube2(&cube1);
@@ -38,20 +53,11 @@ int main(int argc, char** argv) {
 		suprise.translate(0.f, 5.f, 0.f);
 		terrain.update();
 
-		Material darkGreen;
-		darkGreen.setColor(0.f, 0.5f, 0.f, 1.f);
-		Material red;
-		red.setColor(1.f, 0.f, 0.f, 1.f);
-		Material green;
-		green.setColor(0.f, 1.f, 0.f, 1.f);
-		Material blue;
-		blue.setColor(0.f, 0.f, 1.f, 1.f);
-
-		Entity e0(&terrainMesh, &terrain, &darkGreen),
-			e1(&cubeMesh, &cube1, &red),
-			e2(&cubeMesh, &cube2, &green),
-			e3(&sphereMesh, &sphere, &blue),
-			e4(&supriseMesh, &suprise, &red);
+		Entity e0(&terrain, &greenTerrain),
+			   e1(&cube1, &redCube),
+			   e2(&cube2, &greenCube),
+			   e3(&sphere, &blueSphere),
+			   e4(&suprise, &redSuprise);
 		e2.setScale(0.2f, 2.f, 0.2f);
 
 		LightSource light;

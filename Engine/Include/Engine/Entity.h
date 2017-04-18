@@ -1,25 +1,16 @@
 #ifndef ENGINE_ENTITY_H
 #define ENGINE_ENTITY_H
 
-#include "Mesh.h"
 #include "Node.h"
-#include "Material.h"
+#include "Geometry.h"
 
 namespace Engine {
 	class Entity {
 	public:
-		Entity() : mesh(nullptr), node(nullptr), material(nullptr) {}
-		Entity(Mesh* mesh, Node* node, Material* material) :
-			mesh(mesh), node(node), material(material) {}
+		Entity() : node(nullptr), geometry(nullptr) {}
+		Entity(Node* node, Geometry* geometry) :
+			node(node), geometry(geometry) {}
 		~Entity() {}
-
-		Mesh* getMesh() {
-			return mesh;
-		}
-
-		const Mesh* getMesh() const {
-			return mesh;
-		}
 
 		Node* getNode() {
 			return node;
@@ -28,43 +19,38 @@ namespace Engine {
 		const Node* getNode() const {
 			return node;
 		}
-
-		Material* getMaterial() {
-			return material;
+		
+		Geometry* getGeometry() {
+			return geometry;
 		}
-
-		const Material* getMaterial() const {
-			return material;
+		
+		const Geometry* getGeometry() const {
+			return geometry;
 		}
-
+		
 		const glm::mat4& getScaleMatrix() const {
 			return scaleMatrix;
-		}
-
-		void setMesh(Mesh* m) {
-			mesh = m;
 		}
 
 		void setNode(Node* n) {
 			node = n;
 		}
-
-		void setMaterial(Material* m) {
-			material = m;
+		
+		void setGeometry(Geometry* g) {
+			geometry = g;
 		}
-
+		
 		void setScale(float x, float y, float z) {
 			scaleMatrix = glm::scale(glm::mat4(), glm::vec3(x, y, z));
 		}
-
+		
 		void setScale(const glm::vec3& s) {
 			scaleMatrix = glm::scale(glm::mat4(), s);
 		}
-
+		
 	private:
-		Mesh* mesh;
 		Node* node;
-		Material* material;
+		Geometry* geometry;
 		glm::mat4 scaleMatrix;
 	};
 }
