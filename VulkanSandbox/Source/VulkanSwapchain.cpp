@@ -69,6 +69,8 @@ void VulkanSwapchain::init(VkExtent2D& extent) {
 			break;
 		}
 	}
+
+	VkSwapchainKHR oldSwapchain = handle;
 	
 	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	createInfo.pNext = nullptr;
@@ -87,19 +89,26 @@ void VulkanSwapchain::init(VkExtent2D& extent) {
 	createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 	createInfo.presentMode = presentationMode;
 	createInfo.clipped = VK_TRUE;
-	createInfo.oldSwapchain = VK_NULL_HANDLE;
+	createInfo.oldSwapchain = oldSwapchain;
 
 	VkResult result = vkCreateSwapchainKHR(device->getHandle(), &createInfo,
 		nullptr, &handle);
 	if (result != VK_SUCCESS) {
 		throw runtime_error("Failed to create swapchain.");
 	}
-	
+
+	if (inited) {
+		for (VkImageView i : imageViews) {
+			vkDestroyImageView(device->getHandle(), i, nullptr);
+		}
+		vkDestroySwapchainKHR(device->getHandle(), oldSwapchain, nullptr);
+	}
+
 	vkGetSwapchainImagesKHR(device->getHandle(), handle, &n, nullptr);
 	images.resize(n);
 	vkGetSwapchainImagesKHR(device->getHandle(), handle, &n, images.data());
 	
-	imagesTransitioned.resize(n, false);
+	imagesTransitioned = vector<bool>(n, false);
 	
 	VkImageViewCreateInfo imageViewInfo = {};
 	imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -131,27 +140,15 @@ void VulkanSwapchain::init(VkExtent2D& extent) {
 		VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
 		0, 0
 	};
-	vkCreateSemaphore(device->getHandle(), &semInfo, nullptr, &presentSemaphore);
+	if (!inited) {
+		vkCreateSemaphore(device->getHandle(), &semInfo, nullptr, &presentSemaphore);
+	}
 	
 	inited = true;
 }
 
 void VulkanSwapchain::recreate(VkExtent2D extent) {
-	if (!inited) {
-		throw runtime_error("Swapchain not already initialized.");
-	}
-	
-	VkSwapchainKHR oldSwapchain = handle;
-	createInfo.oldSwapchain = oldSwapchain;
-	createInfo.imageExtent = extent;
-	
-	VkResult result = vkCreateSwapchainKHR(device->getHandle(), &createInfo,
-		nullptr, &handle);
-	if (result != VK_SUCCESS) {
-		throw runtime_error("Failed to recreate swapchain.");
-	}
-	vkDestroySwapchainKHR(device->getHandle(), oldSwapchain, nullptr);
-	resolution = extent;
+	init(extent);
 }
 
 void VulkanSwapchain::nextImage() {

@@ -19,7 +19,8 @@ VulkanWindow::VulkanWindow(VulkanContext& context) :
 	renderPass(VK_NULL_HANDLE),
 	mouse({false, glm::vec2(), glm::vec2()}),
 	open(false),
-	renderer(nullptr)
+	renderer(nullptr),
+	haveResized(false)
 {
 }
 
@@ -29,7 +30,6 @@ VulkanWindow::~VulkanWindow() {
 }
 
 void VulkanWindow::init() {
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 	handle = glfwCreateWindow(getWidth(), getHeight(), "VulkanSandbox",
 		nullptr, nullptr);
 	if (!handle) {
@@ -37,9 +37,14 @@ void VulkanWindow::init() {
 	}
 
 	glfwSetWindowUserPointer(handle, this);
-	glfwSetWindowSizeCallback(handle, windowSizeCallback);
 	glfwSetKeyCallback(handle, keyCallback);
-	glfwSetCursorPosCallback(handle, mousePositionCallback);
+	glfwSetCharCallback(handle, charCallback);
+	glfwSetMouseButtonCallback(handle, mouseButtonCallback);
+	glfwSetCursorPosCallback(handle, cursorPositionCallback);
+	glfwSetCursorEnterCallback(handle, cursorEnterCallback);
+	glfwSetWindowSizeCallback(handle, windowSizeCallback);
+	glfwSetDropCallback(handle, fileDropCallback);
+
 	double x, y;
 	glfwGetCursorPos(handle, &x, &y);
 	mouse.position = glm::vec2(x, y);
@@ -93,10 +98,7 @@ void VulkanWindow::close() {
 }
 
 void VulkanWindow::resize(uint32_t w, uint32_t h){
-	viewport.width = w;
-	viewport.height = h;
-	scissor.extent.width = w;
-	scissor.extent.height = h;
+
 }
 
 Renderer& VulkanWindow::getRenderer() {
@@ -210,40 +212,123 @@ void VulkanWindow::createFramebuffers() {
 			throw runtime_error("Failed to create framebuffer.");
 		}
 	}
-
 }
 
-void VulkanWindow::windowSizeCallback(GLFWwindow* window, int width,
-	int height) {
-	VulkanWindow& vulkanWindow = *((VulkanWindow*) glfwGetWindowUserPointer(
-		window));
-	vulkanWindow.resize(width, height);
+void VulkanWindow::updateSize() {
+	vkDeviceWaitIdle(device->getHandle());
+
+	for (VkFramebuffer b : framebuffers) {
+		vkDestroyFramebuffer(device->getHandle(), b, nullptr);
+	}
+	vkDestroyImageView(device->getHandle(), depthImageView, nullptr);
+	delete depthImage;
+	swapchain->recreate({ viewport.width, viewport.height });
+	createDepthBuffer();
+	createFramebuffers();
 }
 
-void VulkanWindow::keyCallback(GLFWwindow* handle, int key, int, int action,
-	int) {
-	VulkanWindow& window = *((VulkanWindow*) glfwGetWindowUserPointer(
-		handle));
-	if (action != GLFW_RELEASE) return;
-	switch (key) {
-	case GLFW_KEY_ESCAPE:
-		glfwSetInputMode(handle, GLFW_CURSOR,
-			window.mouse.hidden ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
-		window.mouse.hidden = !window.mouse.hidden;
+
+void VulkanWindow::keyCallback(GLFWwindow* handle, int key, int, int action, int mods) {
+	VulkanWindow& window = *((VulkanWindow*)glfwGetWindowUserPointer(handle));
+	switch (action) {
+	case GLFW_RELEASE:
+		for (Engine::KeyEventHandler* handler : window.keyEventHandlers) {
+			handler->keyRelease(static_cast<Engine::Key>(key),
+				static_cast<Engine::Modifier>(mods));
+		}
+		break;
+	case GLFW_PRESS:
+		for (Engine::KeyEventHandler* handler : window.keyEventHandlers) {
+			handler->keyPress(static_cast<Engine::Key>(key),
+				static_cast<Engine::Modifier>(mods));
+		}
+		break;
+	case GLFW_REPEAT:
+		for (Engine::KeyEventHandler* handler : window.keyEventHandlers) {
+			handler->keyRelease(static_cast<Engine::Key>(key),
+				static_cast<Engine::Modifier>(mods));
+		}
 		break;
 	default:
 		break;
 	}
 }
 
-void VulkanWindow::mousePositionCallback(GLFWwindow* handle, double x,
-	double y) {
-	VulkanWindow& window = *((VulkanWindow*) glfwGetWindowUserPointer(
-		handle));
+void VulkanWindow::charCallback(GLFWwindow* handle, unsigned int codepoint) {
+	VulkanWindow& window = *((VulkanWindow*)glfwGetWindowUserPointer(handle));
+	for (Engine::KeyEventHandler* handler : window.keyEventHandlers) {
+		handler->charInput((uint32_t)codepoint);
+	}
+}
+
+void VulkanWindow::mouseButtonCallback(GLFWwindow* handle, int button, int action, int mods) {
+	VulkanWindow& window = *((VulkanWindow*)glfwGetWindowUserPointer(handle));
+	switch (action) {
+	case GLFW_RELEASE:
+		for (Engine::MouseEventHandler* handler : window.mouseEventHandlers) {
+			handler->buttonRelease(static_cast<Engine::MouseButton>(button),
+				static_cast<Engine::Modifier>(mods));
+		}
+		break;
+	case GLFW_PRESS:
+		for (Engine::MouseEventHandler* handler : window.mouseEventHandlers) {
+			handler->buttonPress(static_cast<Engine::MouseButton>(button),
+				static_cast<Engine::Modifier>(mods));
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+void VulkanWindow::cursorPositionCallback(GLFWwindow* handle, double x, double y) {
+	VulkanWindow& window = *((VulkanWindow*)glfwGetWindowUserPointer(handle));
+
+	for (Engine::MouseEventHandler* handler : window.mouseEventHandlers) {
+		handler->cursorPosition(x, y);
+	}
+
 	glm::vec2 position(x, y);
 	glm::vec2 motion = position - window.mouse.position;
 	if (window.mouse.hidden) {
 		window.mouse.motion = position - window.mouse.position;
 	}
 	window.mouse.position = position;
+}
+
+void VulkanWindow::cursorEnterCallback(GLFWwindow* handle, int entered) {
+	VulkanWindow& window = *((VulkanWindow*)glfwGetWindowUserPointer(handle));
+	if (entered) {
+		for (Engine::MouseEventHandler* handler : window.mouseEventHandlers) {
+			handler->cursorEnter();
+		}
+	}
+	else {
+		for (Engine::MouseEventHandler* handler : window.mouseEventHandlers) {
+			handler->cursorLeave();
+		}
+	}
+}
+
+void VulkanWindow::windowSizeCallback(GLFWwindow* handle, int w, int h) {
+	VulkanWindow& window = *((VulkanWindow*)glfwGetWindowUserPointer(handle));
+	for (Engine::WindowEventHandler* handler : window.windowEventHandlers) {
+		handler->resize(w, h);
+	}
+	window.viewport.width = w;
+	window.viewport.height = h;
+	window.scissor.extent.width = w;
+	window.scissor.extent.height = h;
+	window.haveResized = true;
+}
+
+void VulkanWindow::fileDropCallback(GLFWwindow* handle, int count, const char** cPaths) {
+	VulkanWindow& window = *((VulkanWindow*)glfwGetWindowUserPointer(handle));
+	vector<string> paths;
+	for (int i = 0; i < count; i++) {
+		paths.push_back(string(cPaths[i]));
+	}
+	for (Engine::WindowEventHandler* handler : window.windowEventHandlers) {
+		handler->fileDrop(paths);
+	}
 }

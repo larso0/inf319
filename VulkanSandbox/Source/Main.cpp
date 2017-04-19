@@ -15,11 +15,65 @@
 using namespace std;
 using namespace Engine;
 
+class KeyHandler : public KeyEventHandler {
+public:
+	KeyHandler(Window& window) : window(window) {
+		window.addEventHandler((EventHandler*)this);
+	}
+
+	void keyRelease(Key key, Modifier) override {
+		switch (key) {
+		case Key::Escape:
+			window.toggleCursorHidden();
+			break;
+		default:
+			break;
+		};
+	}
+
+private:
+	Window& window;
+};
+
+class PerspectiveHandler : public WindowEventHandler {
+public:
+	PerspectiveHandler(Camera& camera) :
+		camera(camera),
+		fieldOfView(60.f),
+		aspectRatio(4.f / 3.f),
+		clipNear(0.1f),
+		clipFar(500.f) {}
+
+	float getFieldOfView() const { return fieldOfView; }
+	float getAspectRatio() const { return aspectRatio; }
+	float getNear() const { return clipNear; }
+	float getFar() const { return clipFar; }
+
+	void setFieldOfView(float fov) { fieldOfView = fov; }
+	void setAspectRatio(float ratio) { aspectRatio = ratio; }
+	void setNear(float n) { clipNear = n; }
+	void setFar(float f) { clipFar = f; }
+
+	void resize(int w, int h) override {
+		aspectRatio = w / (float)h;
+		camera.setPerspectiveProjection(glm::radians(fieldOfView), aspectRatio,
+			clipNear, clipFar);
+	}
+
+private:
+	Camera& camera;
+	float fieldOfView;
+	float aspectRatio;
+	float clipNear, clipFar;
+};
+
 int main(int argc, char** argv) {
 	try {
 		VulkanContext vkContext;
 		Window& window = vkContext.createWindow(1024, 768, 0);
 		Renderer& renderer = window.getRenderer();
+
+		KeyHandler keyHandler(window);
 
 		Mesh cubeMesh = generateCube();
 		IndexedMesh sphereMesh = generateSphere(5);
@@ -70,8 +124,9 @@ int main(int argc, char** argv) {
 		cameraNode.update();
 
 		Camera camera(&cameraNode);
-		camera.setPerspectiveProjection(glm::radians(60.f), 4.f / 3.f, 0.1f,
-			1000.f);
+		PerspectiveHandler perspectiveHandler(camera);
+		window.addEventHandler((EventHandler*)&perspectiveHandler);
+		perspectiveHandler.resize(window.getWidth(), window.getHeight());
 		camera.update();
 
 		renderer.addEntity(&e0);
@@ -86,7 +141,7 @@ int main(int argc, char** argv) {
 		double time = glfwGetTime();
 		while (!window.shouldClose()) {
 			renderer.render();
-			glfwPollEvents();
+			window.handleEvents();
 
 			double seconds = glfwGetTime();
 			float delta = seconds - time;
@@ -181,8 +236,8 @@ int main(int argc, char** argv) {
 				cameraNode.setRotation(yaw, glm::vec3(0.f, 1.f, 0.f));
 				cameraNode.rotate(pitch, glm::vec3(1.f, 0.f, 0.f));
 				cameraNode.update();
-				camera.update();
 			}
+			camera.update();
 		}
 	} catch (const exception& e) {
 		cerr << e.what() << endl;

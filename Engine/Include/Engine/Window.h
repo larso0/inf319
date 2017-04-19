@@ -23,6 +23,7 @@ namespace Engine {
 		virtual glm::vec2 mouseMotion() = 0;
 		virtual bool isCursorHidden() const = 0;
 		virtual void toggleCursorHidden() = 0;
+		virtual void handleEvents() = 0;
 		virtual KeyAction getKey(Key key) const = 0;
 		virtual KeyAction getMouseButton(MouseButton btn) const = 0;
 		virtual glm::vec2 getCursorPosition() const = 0;
