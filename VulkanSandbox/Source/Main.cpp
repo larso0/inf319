@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
 		KeyHandler keyHandler(window);
 
 		Mesh cubeMesh = generateCube();
-		IndexedMesh sphereMesh = generateSphere(5);
+		IndexedMesh sphereMesh = generateSphere(3);
 		IndexedMesh supriseMesh = loadMesh("../Assets/monkey.obj");
 		IndexedMesh terrainMesh = loadMesh("../Assets/terrain.obj");
 

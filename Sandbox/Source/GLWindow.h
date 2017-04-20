@@ -17,6 +17,7 @@ public:
 	glm::vec2 mouseMotion() override;
 	bool isCursorHidden() const override;
 	void toggleCursorHidden() override;
+	void handleEvents() override;
 	Engine::KeyAction getKey(Engine::Key key) const override;
 	Engine::KeyAction getMouseButton(Engine::MouseButton btn) const override;
 	glm::vec2 getCursorPosition() const override;
@@ -41,6 +42,8 @@ private:
 	bool open;
 
 	Engine::Renderer* renderer;
+
+	bool haveResized;
 
 	static void keyCallback(GLFWwindow* handle, int key, int, int action, int);
 	static void charCallback(GLFWwindow* handle, unsigned int codepoint);

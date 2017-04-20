@@ -23,6 +23,10 @@ namespace Engine {
 			return indices;
 		}
 
+		const std::vector<uint32_t>& getIndices() const {
+			return indices;
+		}
+
 		size_t getIndexDataSize() const {
 			return sizeof(uint32_t)*indices.size();
 		}

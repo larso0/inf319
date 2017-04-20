@@ -98,7 +98,14 @@ void VulkanWindow::close() {
 }
 
 void VulkanWindow::resize(uint32_t w, uint32_t h){
-
+	if (open) {
+		glfwSetWindowSize(handle, w, h);
+	} else {
+		viewport.width = w;
+		viewport.height = h;
+		scissor.extent.width = w;
+		scissor.extent.height = h;
+	}
 }
 
 Renderer& VulkanWindow::getRenderer() {
@@ -225,6 +232,7 @@ void VulkanWindow::updateSize() {
 	swapchain->recreate({ viewport.width, viewport.height });
 	createDepthBuffer();
 	createFramebuffers();
+	haveResized = false;
 }
 
 

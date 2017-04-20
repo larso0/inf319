@@ -10,7 +10,8 @@ width(800),
 height(600),
 mouse({false, glm::vec2(), glm::vec2()}),
 open(false),
-renderer(nullptr)
+renderer(nullptr),
+haveResized(false)
 {
 }
 
@@ -83,6 +84,14 @@ void GLWindow::toggleCursorHidden() {
 	glfwSetInputMode(handle, GLFW_CURSOR,
 		mouse.hidden ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
 	mouse.hidden = !mouse.hidden;
+}
+
+void GLWindow::handleEvents() {
+	glfwPollEvents();
+	if (haveResized) {
+		glViewport(0, 0, width, height);
+		haveResized = false;
+	}
 }
 
 Engine::KeyAction GLWindow::getKey(Engine::Key key) const {
@@ -202,7 +211,7 @@ void GLWindow::windowSizeCallback(GLFWwindow* handle, int w, int h) {
 	}
 	window.width = (uint32_t)w;
 	window.height = (uint32_t)h;
-	glViewport(0, 0, w, h);
+	window.haveResized = true;
 }
 
 void GLWindow::fileDropCallback(GLFWwindow* handle, int count, const char** cPaths) {

@@ -38,6 +38,10 @@ namespace Engine {
 			return vertices;
 		}
 
+		const std::vector<Vertex>& getVertices() const {
+			return vertices;
+		}
+
 		size_t getVertexDataSize() const {
 			return sizeof(Vertex)*vertices.size();
 		}

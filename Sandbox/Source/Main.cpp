@@ -138,7 +138,7 @@ int main(int argc, char** argv) {
 		double time = glfwGetTime();
 		while (!window.shouldClose()) {
 			renderer.render();
-			glfwPollEvents();
+			window.handleEvents();
 
 			double seconds = glfwGetTime();
 			float delta = seconds - time;

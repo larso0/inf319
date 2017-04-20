@@ -3,6 +3,7 @@
 #include <tiny_obj_loader.h>
 #include <iostream>
 #include <stdexcept>
+#include <map>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -65,10 +66,8 @@ namespace Engine {
 
 	static uint32_t subVertex(IndexedMesh& m, uint32_t a, uint32_t b) {
 		auto& vertices = m.getVertices();
-		uint32_t index = vertices.size();
 		vec3 pos = glm::normalize(glm::mix(vertices[a].position, vertices[b].position, 0.5f));
-		m.addVertex({ pos, pos, sphereUv(pos) });
-		return index;
+		return m.addVertex({ pos, pos, sphereUv(pos) });;
 	}
 
 	static void subdivide(IndexedMesh& m, uint32_t a, uint32_t b, uint32_t c, unsigned level) {
@@ -86,42 +85,119 @@ namespace Engine {
 		}
 	}
 
+	void repairTextureWrapSeam(vector<Vertex>& vertices, vector<uint32_t>& indices) {
+		vector<uint32_t> newIndices;
+		map<uint32_t, uint32_t> correctionList;
+		for (uint32_t i = 0; i < indices.size(); i += 3) {
+			vec3 v0 = vec3(vertices[indices[i + 0]].textureCoordinate, 0);
+			vec3 v1 = vec3(vertices[indices[i + 1]].textureCoordinate, 0);
+			vec3 v2 = vec3(vertices[indices[i + 2]].textureCoordinate, 0);
+
+			vec3 cross = glm::cross(v0 - v1, v2 - v1);
+
+			if (cross.z <= 0) {
+				for (uint32_t j = i; j < i + 3; j++) {
+					uint32_t index = indices[j];
+					Vertex vertex = vertices[index];
+					if (vertex.textureCoordinate.x >= 0.9f) {
+						auto found = correctionList.find(index);
+						if (found != correctionList.end()) {
+							newIndices.push_back(found->second);
+						} else {
+							vec2 texCoord = vertex.textureCoordinate;
+							texCoord.x -= 1;
+							vertex.textureCoordinate = texCoord;
+							vertices.push_back(vertex);
+							uint32_t correctedVertexIndex = vertices.size() - 1;
+							correctionList[index] = correctedVertexIndex;
+							newIndices.push_back(correctedVertexIndex);
+						}
+					} else {
+						newIndices.push_back(index);
+					}
+
+				}
+			} else {
+				for (uint32_t j = i; j < i + 3; j++) {
+					newIndices.push_back(indices[j]);
+				}
+			}
+		}
+		indices = newIndices;
+	}
+
 	IndexedMesh generateSphere(unsigned subdivisions) {
 		IndexedMesh m;
 
+		float t = (1.f + sqrtf(5.f)) / 2.f;
+
 		vec3
-			va(-1.f, 0.f, 1.f),
-			vb(1.f, 0.f, 1.f),
-			vc(1.f, 0.f, -1.f),
-			vd(-1.f, 0.f, -1.f),
-			ve(0.f, 1.f, 0.f),
-			vf(0.f, -1.f, 0.f);
-		va = glm::normalize(va);
-		vb = glm::normalize(vb);
-		vc = glm::normalize(vc);
-		vd = glm::normalize(vd);
+			v0(-1.f, t, 0.f),
+			v1(1.f, t, 0.f),
+			v2(-1.f, -t, 0.f),
+			v3(1.f, -t, 0.f),
 
-		uint32_t a = 0;
-		m.addVertex({ va, va, sphereUv(va) });
-		uint32_t b = 1;
-		m.addVertex({ vb, vb, sphereUv(vb) });
-		uint32_t c = 2;
-		m.addVertex({ vc, vc, sphereUv(vc) });
-		uint32_t d = 3;
-		m.addVertex({ vd, vd, sphereUv(vd) });
-		uint32_t e = 4;
-		m.addVertex({ ve, ve, sphereUv(ve) });
-		uint32_t f = 5;
-		m.addVertex({ vf, vf, sphereUv(vf) });
+			v4(0.f, -1.f, t),
+			v5(0.f, 1.f, t),
+			v6(0.f, -1.f, -t),
+			v7(0.f, 1.f, -t),
+			
+			v8(t, 0.f, -1.f),
+			v9(t, 0.f, 1.f),
+			v10(-t, 0.f, -1.f),
+			v11(-t, 0.f, 1.f);
 
-		subdivide(m, a, b, e, subdivisions);
-		subdivide(m, b, c, e, subdivisions);
-		subdivide(m, c, d, e, subdivisions);
-		subdivide(m, d, a, e, subdivisions);
-		subdivide(m, b, a, f, subdivisions);
-		subdivide(m, c, b, f, subdivisions);
-		subdivide(m, d, c, f, subdivisions);
-		subdivide(m, a, d, f, subdivisions);
+		v0 = glm::normalize(v0);
+		v1 = glm::normalize(v1);
+		v2 = glm::normalize(v2);
+		v3 = glm::normalize(v3);
+		v4 = glm::normalize(v4);
+		v5 = glm::normalize(v5);
+		v6 = glm::normalize(v6);
+		v7 = glm::normalize(v7);
+		v8 = glm::normalize(v8);
+		v9 = glm::normalize(v9);
+		v10 = glm::normalize(v10);
+		v11 = glm::normalize(v11);
+
+		m.addVertex({ v0, v0, sphereUv(v0) });
+		m.addVertex({ v1, v1, sphereUv(v1) });
+		m.addVertex({ v2, v2, sphereUv(v2) });
+		m.addVertex({ v3, v3, sphereUv(v3) });
+		m.addVertex({ v4, v4, sphereUv(v4) });
+		m.addVertex({ v5, v5, sphereUv(v5) });
+		m.addVertex({ v6, v6, sphereUv(v6) });
+		m.addVertex({ v7, v7, sphereUv(v7) });
+		m.addVertex({ v8, v8, sphereUv(v8) });
+		m.addVertex({ v9, v9, sphereUv(v9) });
+		m.addVertex({ v10, v10, sphereUv(v10) });
+		m.addVertex({ v11, v11, sphereUv(v11) });
+
+		subdivide(m, 0, 11, 5, subdivisions);
+		subdivide(m, 0, 5, 1, subdivisions);
+		subdivide(m, 0, 1, 7, subdivisions);
+		subdivide(m, 0, 7, 10, subdivisions);
+		subdivide(m, 0, 10, 11, subdivisions);
+
+		subdivide(m, 1, 5, 9, subdivisions);
+		subdivide(m, 5, 11, 4, subdivisions);
+		subdivide(m, 11, 10, 2, subdivisions);
+		subdivide(m, 10, 7, 6, subdivisions);
+		subdivide(m, 7, 1, 8, subdivisions);
+
+		subdivide(m, 3, 9, 4, subdivisions);
+		subdivide(m, 3, 4, 2, subdivisions);
+		subdivide(m, 3, 2, 6, subdivisions);
+		subdivide(m, 3, 6, 8, subdivisions);
+		subdivide(m, 3, 8, 9, subdivisions);
+
+		subdivide(m, 4, 9, 5, subdivisions);
+		subdivide(m, 2, 4, 11, subdivisions);
+		subdivide(m, 6, 2, 10, subdivisions);
+		subdivide(m, 8, 6, 7, subdivisions);
+		subdivide(m, 9, 8, 1, subdivisions);
+
+		repairTextureWrapSeam(m.getVertices(), m.getIndices());
 
 		return m;
 	}
