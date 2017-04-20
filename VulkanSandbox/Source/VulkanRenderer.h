@@ -64,6 +64,8 @@ private:
 	void createSampler();
 	void setupDescriptors();
 	void createPipelines();
+
+	PFN_vkCmdPushDescriptorSetKHR pushDescriptorSet;
 };
 
 #endif

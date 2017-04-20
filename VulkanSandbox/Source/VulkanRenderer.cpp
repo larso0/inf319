@@ -81,6 +81,9 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 		&renderingCompleteSemaphore);
 
 	createPipelines();
+
+	pushDescriptorSet = (PFN_vkCmdPushDescriptorSetKHR)
+		vkGetDeviceProcAddr(window.device->getHandle(), "vkCmdPushDescriptorSetKHR");
 }
 
 VulkanRenderer::~VulkanRenderer() {
@@ -422,7 +425,7 @@ void VulkanRenderer::bindTexture(const Engine::Texture* tex) {
 		vtex = found->second.get();
 	}
 	textureBindInfo.imageInfo.imageView = vtex->getImageView();
-	vkCmdPushDescriptorSetKHR(window.presentCommandBuffer,
+	pushDescriptorSet(window.presentCommandBuffer,
 		VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
 		&textureBindInfo.descriptorWrite);
 	boundTexture = tex;

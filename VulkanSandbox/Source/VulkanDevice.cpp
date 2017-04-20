@@ -141,8 +141,13 @@ VulkanDevice::VulkanDevice(const VulkanContext& context,
 
 	features = {};
 	if ((capability & Capability::Graphics) != Capability::None) {
-		deviceCreateInfo.enabledExtensionCount = 1;
-		deviceCreateInfo.ppEnabledExtensionNames = &swapchainExtension;
+		const char* extensions[] {
+			"VK_KHR_swapchain",
+			"VK_KHR_push_descriptor"
+		};
+
+		deviceCreateInfo.enabledExtensionCount = 2;
+		deviceCreateInfo.ppEnabledExtensionNames = extensions;
 		features.shaderClipDistance = VK_TRUE;
 		features.samplerAnisotropy = VK_TRUE;
 	}
