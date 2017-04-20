@@ -80,6 +80,8 @@ int main(int argc, char** argv) {
 		IndexedMesh supriseMesh = loadMesh("../Assets/monkey.obj");
 		IndexedMesh terrainMesh = loadMesh("../Assets/terrain.obj");
 
+		Texture texture("../Assets/texture.jpg");
+
 		Material darkGreen;
 		darkGreen.setColor(0.f, 0.5f, 0.f, 1.f);
 		Material red;
@@ -88,7 +90,7 @@ int main(int argc, char** argv) {
 		green.setColor(0.f, 1.f, 0.f, 1.f);
 		Material blue;
 		blue.setColor(0.f, 0.f, 1.f, 1.f);
-		blue.setTexture((Texture*)1);
+		blue.setTexture(&texture);
 
 		Geometry greenTerrain(&terrainMesh, &darkGreen);
 		Geometry redCube(&cubeMesh, &red);

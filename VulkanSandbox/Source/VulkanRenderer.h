@@ -44,10 +44,18 @@ private:
 	
 	VkSampler textureSampler;
 	
-	VulkanTexture* texture;
+	std::unordered_map < const Engine::Texture*, std::shared_ptr<VulkanTexture> >
+		textures;
+	const Engine::Texture* boundTexture;
+	struct TextureBindInfo {
+		VkDescriptorImageInfo imageInfo;
+		VkWriteDescriptorSet descriptorWrite;
+	} textureBindInfo;
+
+	void bindTexture(const Engine::Texture* tex);
 
 	std::unordered_map<const Engine::Mesh*, std::shared_ptr<VulkanPerMesh>>
-	meshCache;
+		meshCache;
 
 	void createDescriptorPool();
 	void createDescriptorSetLayout();

@@ -7,7 +7,7 @@
 
 class VulkanTexture {
 public:
-	VulkanTexture(const VulkanDevice& device, Engine::Texture* texture);
+	VulkanTexture(const VulkanDevice& device, const Engine::Texture* texture);
 	~VulkanTexture();
 	
 	VkFormat getFormat() const {

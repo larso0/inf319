@@ -30,7 +30,8 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 	program(VulkanShaderProgram(*window.device)),
 	texturedProgram(VulkanShaderProgram(*window.device)),
 	descriptorPool(VK_NULL_HANDLE),
-	renderingCompleteSemaphore(VK_NULL_HANDLE)
+	renderingCompleteSemaphore(VK_NULL_HANDLE),
+	boundTexture(nullptr)
 {
 	vector<char> vertexShaderCode = readFile("Shaders/Simple.vert.spv");
 	vector<char> fragmentShaderCode = readFile("Shaders/Simple.frag.spv");
@@ -66,9 +67,6 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 			| VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-	
-	Engine::Texture tex("../Assets/texture.jpg");
-	texture = new VulkanTexture(*window.device, &tex);
 
 	createDescriptorPool();
 	createDescriptorSetLayout();
@@ -91,7 +89,6 @@ VulkanRenderer::~VulkanRenderer() {
 	vkDestroyDescriptorPool(window.device->getHandle(), descriptorPool, nullptr);
 	delete entityDataBuffer;
 	delete lightDataBuffer;
-	delete texture;
 	vkDestroySemaphore(window.device->getHandle(), renderingCompleteSemaphore, nullptr);
 	vkDestroySampler(window.device->getHandle(), textureSampler, nullptr);
 	delete simplePipeline;
@@ -172,8 +169,12 @@ void VulkanRenderer::render() {
 		uint32_t uniformOffset = i * entityDataStride;
 
 		VkPipeline pipeline;
-		if (e.getGeometry()->getMaterial()->getTexture() != nullptr) {
+		const Engine::Texture* tex = e.getGeometry()->getMaterial()->getTexture();
+		if (tex != nullptr) {
 			pipeline = texturedPipeline->getHandle();
+			if (boundTexture != tex) {
+				bindTexture(tex);
+			}
 		}
 		else {
 			pipeline = simplePipeline->getHandle();
@@ -343,13 +344,8 @@ void VulkanRenderer::setupDescriptors() {
 	lightBufferInfo.buffer = lightDataBuffer->getHandle();
 	lightBufferInfo.offset = 0;
 	lightBufferInfo.range = lightDataStride;
-	
-	VkDescriptorImageInfo imageInfo = {};
-	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	imageInfo.imageView = texture->getImageView();
-	imageInfo.sampler = textureSampler;
 
-	VkWriteDescriptorSet descriptorWrites[5];
+	VkWriteDescriptorSet descriptorWrites[2];
 	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	descriptorWrites[0].pNext = nullptr;
 	descriptorWrites[0].dstSet = descriptorSet;
@@ -372,19 +368,23 @@ void VulkanRenderer::setupDescriptors() {
 	descriptorWrites[1].pImageInfo = nullptr;
 	descriptorWrites[1].pTexelBufferView = nullptr;
 	
-	descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrites[2].pNext = nullptr;
-	descriptorWrites[2].dstSet = descriptorSet;
-	descriptorWrites[2].dstBinding = 2;
-	descriptorWrites[2].dstArrayElement = 0;
-	descriptorWrites[2].descriptorType =
+	vkUpdateDescriptorSets(window.device->getHandle(), 2, descriptorWrites, 0, nullptr);
+
+	textureBindInfo.imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	textureBindInfo.imageInfo.imageView = VK_NULL_HANDLE;
+	textureBindInfo.imageInfo.sampler = textureSampler;
+
+	textureBindInfo.descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	textureBindInfo.descriptorWrite.pNext = nullptr;
+	textureBindInfo.descriptorWrite.dstSet = descriptorSet;
+	textureBindInfo.descriptorWrite.dstBinding = 2;
+	textureBindInfo.descriptorWrite.dstArrayElement = 0;
+	textureBindInfo.descriptorWrite.descriptorType =
 		VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	descriptorWrites[2].descriptorCount = 1;
-	descriptorWrites[2].pBufferInfo = nullptr;
-	descriptorWrites[2].pImageInfo = &imageInfo;
-	descriptorWrites[2].pTexelBufferView = nullptr;
-	
-	vkUpdateDescriptorSets(window.device->getHandle(), 3, descriptorWrites, 0, nullptr);
+	textureBindInfo.descriptorWrite.descriptorCount = 1;
+	textureBindInfo.descriptorWrite.pBufferInfo = nullptr;
+	textureBindInfo.descriptorWrite.pImageInfo = &textureBindInfo.imageInfo;
+	textureBindInfo.descriptorWrite.pTexelBufferView = nullptr;
 }
 
 void VulkanRenderer::createPipelines() {
@@ -408,4 +408,22 @@ void VulkanRenderer::createPipelines() {
 		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 2, attribs);
 	texturedPipeline = new VulkanPipeline(texturedProgram, window.renderPass,
 		pipelineLayout, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 3, attribs);
+}
+
+void VulkanRenderer::bindTexture(const Engine::Texture* tex) {
+	auto found = textures.find(tex);
+	VulkanTexture* vtex = nullptr;
+	if (found == textures.end()) {
+		shared_ptr<VulkanTexture> newtex = 
+			make_shared<VulkanTexture>(*window.device, tex);
+		textures[tex] = newtex;
+		vtex = newtex.get();
+	} else {
+		vtex = found->second.get();
+	}
+	textureBindInfo.imageInfo.imageView = vtex->getImageView();
+	vkCmdPushDescriptorSetKHR(window.presentCommandBuffer,
+		VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
+		&textureBindInfo.descriptorWrite);
+	boundTexture = tex;
 }
