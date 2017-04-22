@@ -30,7 +30,8 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 	program(VulkanShaderProgram(*window.device)),
 	texturedProgram(VulkanShaderProgram(*window.device)),
 	descriptorPool(VK_NULL_HANDLE),
-	renderingCompleteSemaphore(VK_NULL_HANDLE)
+	renderingCompleteSemaphore(VK_NULL_HANDLE),
+	texture(nullptr)
 {
 	vector<char> vertexShaderCode = readFile("Shaders/Simple.vert.spv");
 	vector<char> fragmentShaderCode = readFile("Shaders/Simple.frag.spv");
@@ -66,9 +67,6 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
 			| VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-	
-	Engine::Texture tex("../Assets/texture.jpg");
-	texture = new VulkanTexture(*window.device, &tex);
 
 	createDescriptorPool();
 	createDescriptorSetLayout();
