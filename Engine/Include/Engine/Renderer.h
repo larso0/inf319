@@ -4,6 +4,7 @@
 #include "Camera.h"
 #include "Entity.h"
 #include "LightSource.h"
+#include "TextureAtlas.h"
 #include <vector>
 
 namespace Engine {
@@ -26,6 +27,10 @@ namespace Engine {
 			camera = c;
 		}
 
+		virtual void setTextureAtlas(const TextureAtlas* atlas) {
+			textureAtlas = atlas;
+		}
+
 		Camera* getCamera() {
 			return camera;
 		}
@@ -34,8 +39,13 @@ namespace Engine {
 			return camera;
 		}
 
+		const TextureAtlas* getTextureAtlas() const {
+			return textureAtlas;
+		}
+
 	protected:
 		Camera* camera;
+		const TextureAtlas* textureAtlas;
 		std::vector<Entity*> entities;
 		std::vector<LightSource*> lightSources;
 	};

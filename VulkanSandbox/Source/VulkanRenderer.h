@@ -17,6 +17,8 @@ public:
 
 	void render() override;
 
+	void setTextureAtlas(const Engine::TextureAtlas* atlas) override;
+
 private:
 	VulkanWindow& window;
 
@@ -33,6 +35,8 @@ private:
 		glm::mat4 mvp;
 		glm::mat4 normal;
 		glm::vec4 color;
+		Engine::TextureRect textureRegion;
+		glm::vec2 textureScale;
 	};
 
 	struct LightData {
@@ -43,8 +47,9 @@ private:
 	VkSemaphore renderingCompleteSemaphore;
 	
 	VkSampler textureSampler;
-	
 	VulkanTexture* texture;
+	VkDescriptorImageInfo imageInfo;
+	VkWriteDescriptorSet imageWriteDescriptor;
 
 	std::unordered_map<const Engine::Mesh*, std::shared_ptr<VulkanPerMesh>>
 	meshCache;

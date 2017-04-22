@@ -73,6 +73,9 @@ int main(int argc, char** argv) {
 		Window& window = vkContext.createWindow(1024, 768, 0);
 		Renderer& renderer = window.getRenderer();
 
+		TextureAtlas atlas("../Assets/textureAtlas.png", "../Assets/textureAtlas.meta");
+		renderer.setTextureAtlas(&atlas);
+
 		KeyHandler keyHandler(window);
 
 		Mesh cubeMesh = generateCube();
@@ -88,12 +91,18 @@ int main(int argc, char** argv) {
 		green.setColor(0.f, 1.f, 0.f, 1.f);
 		Material blue;
 		blue.setColor(0.f, 0.f, 1.f, 1.f);
-		blue.setTexture((Texture*)1);
+		Material globe;
+		globe.setTextureName("globe");
+		Material ground;
+		ground.setTextureName("ground");
+		ground.setTextureScale(100.f, 100.f);
+		Material statue;
+		statue.setTextureName("statue");
 
-		Geometry greenTerrain(&terrainMesh, &darkGreen);
-		Geometry redCube(&cubeMesh, &red);
+		Geometry greenTerrain(&terrainMesh, &ground);
+		Geometry redCube(&cubeMesh, &statue);
 		Geometry greenCube(&cubeMesh, &green);
-		Geometry blueSphere(&sphereMesh, &blue);
+		Geometry blueSphere(&sphereMesh, &globe);
 		Geometry redSuprise(&supriseMesh, &red);
 
 		Node terrain;

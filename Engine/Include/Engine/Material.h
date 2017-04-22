@@ -2,12 +2,12 @@
 #define ENGINE_MATERIAL_H
 
 #include "Math.h"
-#include "Texture.h"
+#include <string>
 
 namespace Engine {
 	class Material {
 	public:
-		Material() : texture(nullptr) {}
+		Material() : textureScale(glm::vec2(1.f, 1.f)) {}
 
 		void setColor(float r, float g, float b, float a) {
 			color.r = r;
@@ -16,29 +16,42 @@ namespace Engine {
 			color.a = a;
 		}
 
+		bool isTextured() const {
+			return !textureName.empty();
+		}
+
 		void setColor(const glm::vec4& c) {
 			color = c;
 		}
-		
-		void setTexture(Texture* t) {
-			texture = t;
+
+		void setTextureName(const std::string& name) {
+			textureName = name;
+		}
+
+		void setTextureScale(float x, float y) {
+			textureScale = glm::vec2(x, y);
+		}
+
+		void setTextureScale(glm::vec2 scale) {
+			textureScale = scale;
 		}
 
 		const glm::vec4& getColor() const {
 			return color;
 		}
-		
-		Texture* getTexture() {
-			return texture;
+
+		const std::string& getTextureName() const {
+			return textureName;
 		}
-		
-		const Texture* getTexture() const {
-			return texture;
+
+		glm::vec2 getTextureScale() const {
+			return textureScale;
 		}
 
 	private:
 		glm::vec4 color;
-		Texture* texture;
+		std::string textureName;
+		glm::vec2 textureScale;
 	};
 }
 

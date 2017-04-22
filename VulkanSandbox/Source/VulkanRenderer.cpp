@@ -149,7 +149,12 @@ void VulkanRenderer::render() {
 			* worldMatrix;
 		data.normal = glm::transpose(glm::inverse(worldMatrix));
 		if (e.getGeometry()->getMaterial()) {
-			data.color = e.getGeometry()->getMaterial()->getColor();
+			const Material* material = e.getGeometry()->getMaterial();
+			data.color = material->getColor();
+			if (!material->getTextureName().empty()) {
+				data.textureRegion = textureAtlas->getRegion(material->getTextureName());
+				data.textureScale = material->getTextureScale();
+			}
 		} else {
 			data.color = glm::vec4(0.8f, 0.f, 0.8f, 1.f);
 		}
@@ -172,7 +177,7 @@ void VulkanRenderer::render() {
 		uint32_t uniformOffset = i * entityDataStride;
 
 		VkPipeline pipeline;
-		if (e.getGeometry()->getMaterial()->getTexture() != nullptr) {
+		if (!e.getGeometry()->getMaterial()->getTextureName().empty()) {
 			pipeline = texturedPipeline->getHandle();
 		}
 		else {
@@ -222,6 +227,15 @@ void VulkanRenderer::render() {
 	vkDestroyFence(window.device->getHandle(), renderFence, nullptr);
 	
 	window.swapchain->present(renderingCompleteSemaphore);
+}
+
+void VulkanRenderer::setTextureAtlas(const Engine::TextureAtlas* atlas) {
+	Renderer::setTextureAtlas(atlas);
+	if (texture) delete texture;
+	texture = new VulkanTexture(*window.device, atlas->getTexture());
+	imageInfo.imageView = texture->getImageView();
+	vkUpdateDescriptorSets(window.device->getHandle(), 1, &imageWriteDescriptor,
+		0, nullptr);
 }
 
 void VulkanRenderer::createDescriptorPool() {
@@ -343,13 +357,8 @@ void VulkanRenderer::setupDescriptors() {
 	lightBufferInfo.buffer = lightDataBuffer->getHandle();
 	lightBufferInfo.offset = 0;
 	lightBufferInfo.range = lightDataStride;
-	
-	VkDescriptorImageInfo imageInfo = {};
-	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	imageInfo.imageView = texture->getImageView();
-	imageInfo.sampler = textureSampler;
 
-	VkWriteDescriptorSet descriptorWrites[5];
+	VkWriteDescriptorSet descriptorWrites[2];
 	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	descriptorWrites[0].pNext = nullptr;
 	descriptorWrites[0].dstSet = descriptorSet;
@@ -372,19 +381,22 @@ void VulkanRenderer::setupDescriptors() {
 	descriptorWrites[1].pImageInfo = nullptr;
 	descriptorWrites[1].pTexelBufferView = nullptr;
 	
-	descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrites[2].pNext = nullptr;
-	descriptorWrites[2].dstSet = descriptorSet;
-	descriptorWrites[2].dstBinding = 2;
-	descriptorWrites[2].dstArrayElement = 0;
-	descriptorWrites[2].descriptorType =
-		VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	descriptorWrites[2].descriptorCount = 1;
-	descriptorWrites[2].pBufferInfo = nullptr;
-	descriptorWrites[2].pImageInfo = &imageInfo;
-	descriptorWrites[2].pTexelBufferView = nullptr;
-	
-	vkUpdateDescriptorSets(window.device->getHandle(), 3, descriptorWrites, 0, nullptr);
+	vkUpdateDescriptorSets(window.device->getHandle(), 2, descriptorWrites, 0, nullptr);
+
+	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	imageInfo.imageView = VK_NULL_HANDLE;
+	imageInfo.sampler = textureSampler;
+
+	imageWriteDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	imageWriteDescriptor.pNext = nullptr;
+	imageWriteDescriptor.dstSet = descriptorSet;
+	imageWriteDescriptor.dstBinding = 2;
+	imageWriteDescriptor.dstArrayElement = 0;
+	imageWriteDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	imageWriteDescriptor.descriptorCount = 1;
+	imageWriteDescriptor.pBufferInfo = nullptr;
+	imageWriteDescriptor.pImageInfo = &imageInfo;
+	imageWriteDescriptor.pTexelBufferView = nullptr;
 }
 
 void VulkanRenderer::createPipelines() {

@@ -217,14 +217,21 @@ namespace Engine {
 		IndexedMesh mesh;
 
 		for (const tinyobj::shape_t& shape : shapes) {
-			for (int i = 0; i < shape.mesh.positions.size();) {
+			for (int i = 0; i < shape.mesh.positions.size() / 3; i++) {
 				Vertex v;
-				v.position.x = shape.mesh.positions[i];
-				v.normal.x = shape.mesh.normals[i++];
-				v.position.y = shape.mesh.positions[i];
-				v.normal.y = shape.mesh.normals[i++];
-				v.position.z = shape.mesh.positions[i];
-				v.normal.z = shape.mesh.normals[i++];
+				int pos = i*3;
+				v.position.x = shape.mesh.positions[pos];
+				v.normal.x = shape.mesh.normals[pos++];
+				v.position.y = shape.mesh.positions[pos];
+				v.normal.y = shape.mesh.normals[pos++];
+				v.position.z = shape.mesh.positions[pos];
+				v.normal.z = shape.mesh.normals[pos++];
+
+				if (!shape.mesh.texcoords.empty()) {
+					pos = i*2;
+					v.textureCoordinate.x = shape.mesh.texcoords[pos++];
+					v.textureCoordinate.y = shape.mesh.texcoords[pos];
+				}
 				mesh.addVertex(v);
 			}
 			uint32_t offset = (uint32_t)mesh.getElementCount();

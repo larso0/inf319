@@ -6,7 +6,7 @@
 using namespace std;
 using namespace Engine;
 
-VulkanTexture::VulkanTexture(const VulkanDevice& device, Texture* texture) :
+VulkanTexture::VulkanTexture(const VulkanDevice& device, const Texture* texture) :
 	device(device)
 {
 	switch (texture->getFormat()) {
