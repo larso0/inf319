@@ -21,7 +21,7 @@ namespace Engine {
 		virtual ~Mesh() {}
 
 		uint32_t addVertex(const Vertex& vertex) {
-			uint32_t i = vertices.size();
+			uint32_t i = (uint32_t)vertices.size();
 			vertices.push_back(vertex);
 			return i;
 		}

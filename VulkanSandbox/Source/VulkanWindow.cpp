@@ -63,8 +63,8 @@ void VulkanWindow::init() {
 	swapchain = new VulkanSwapchain(device, surface);
 	VkExtent2D extent = { getWidth(), getHeight() };
 	swapchain->init(extent);
-	viewport.width = extent.width;
-	viewport.height = extent.height;
+	viewport.width = (float)extent.width;
+	viewport.height = (float)extent.height;
 	scissor.extent = extent;
 
 	VkCommandBufferAllocateInfo commandBufferInfo = {};
@@ -101,8 +101,8 @@ void VulkanWindow::resize(uint32_t w, uint32_t h){
 	if (open) {
 		glfwSetWindowSize(handle, w, h);
 	} else {
-		viewport.width = w;
-		viewport.height = h;
+		viewport.width = (float)w;
+		viewport.height = (float)h;
 		scissor.extent.width = w;
 		scissor.extent.height = h;
 	}
@@ -229,7 +229,7 @@ void VulkanWindow::updateSize() {
 	}
 	vkDestroyImageView(device->getHandle(), depthImageView, nullptr);
 	delete depthImage;
-	swapchain->recreate({ viewport.width, viewport.height });
+	swapchain->recreate({ (uint32_t)viewport.width, (uint32_t)viewport.height });
 	createDepthBuffer();
 	createFramebuffers();
 	haveResized = false;
@@ -323,8 +323,8 @@ void VulkanWindow::windowSizeCallback(GLFWwindow* handle, int w, int h) {
 	for (Engine::WindowEventHandler* handler : window.windowEventHandlers) {
 		handler->resize(w, h);
 	}
-	window.viewport.width = w;
-	window.viewport.height = h;
+	window.viewport.width = (float)w;
+	window.viewport.height = (float)h;
 	window.scissor.extent.width = w;
 	window.scissor.extent.height = h;
 	window.haveResized = true;

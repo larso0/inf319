@@ -141,7 +141,7 @@ int main(int argc, char** argv) {
 			window.handleEvents();
 
 			double seconds = glfwGetTime();
-			float delta = seconds - time;
+			float delta = (float)(seconds - time);
 			time = seconds;
 
 			if (window.isCursorHidden()) {

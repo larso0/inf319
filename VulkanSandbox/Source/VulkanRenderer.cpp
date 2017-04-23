@@ -172,7 +172,7 @@ void VulkanRenderer::render() {
 
 		shared_ptr<VulkanPerMesh>& perMesh = meshCache[mesh];
 
-		uint32_t uniformOffset = i * entityDataStride;
+		uint32_t uniformOffset = (uint32_t)(i * entityDataStride);
 
 		VkPipeline pipeline;
 		if (!e.getGeometry()->getMaterial()->getTextureName().empty()) {
@@ -402,17 +402,17 @@ void VulkanRenderer::createPipelines() {
 	attribs[0].location = 0;
 	attribs[0].binding = 0;
 	attribs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-	attribs[0].offset = Vertex::PositionOffset;
+	attribs[0].offset = (uint32_t)Vertex::PositionOffset;
 
 	attribs[1].location = 1;
 	attribs[1].binding = 0;
 	attribs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-	attribs[1].offset = Vertex::NormalOffset;
+	attribs[1].offset = (uint32_t)Vertex::NormalOffset;
 
 	attribs[2].location = 2;
 	attribs[2].binding = 0;
 	attribs[2].format = VK_FORMAT_R32G32_SFLOAT;
-	attribs[2].offset = Vertex::TextureCoordinateOffset;
+	attribs[2].offset = (uint32_t)Vertex::TextureCoordinateOffset;
 
 	simplePipeline = new VulkanPipeline(program, window.renderPass, pipelineLayout,
 		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 2, attribs);

@@ -54,7 +54,7 @@ VulkanDevice::VulkanDevice(const VulkanContext& context,
 		vkGetPhysicalDeviceQueueFamilyProperties(current, &n, queues.data());
 
 		Capability currentCapability = Capability::None;
-		for (int i = 0; i < n; i++) {
+		for (uint32_t i = 0; i < n; i++) {
 			VkQueueFlags flags = queues[i].queueFlags;
 			if ((capability & Capability::Transfer) != Capability::None
 				&& (currentCapability & Capability::Transfer) == Capability::None
@@ -136,7 +136,7 @@ VulkanDevice::VulkanDevice(const VulkanContext& context,
 
 	deviceCreateInfo = {};
 	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	deviceCreateInfo.queueCreateInfoCount = queues.size();
+	deviceCreateInfo.queueCreateInfoCount = (uint32_t)queues.size();
 	deviceCreateInfo.pQueueCreateInfos = queues.data();
 
 	features = {};

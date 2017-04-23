@@ -21,7 +21,7 @@ public:
 	void close() override;
 
 	bool shouldClose() const override {
-		return glfwWindowShouldClose(handle);
+		return glfwWindowShouldClose(handle) != 0;
 	}
 
 	void resize(uint32_t w, uint32_t h) override;
@@ -64,11 +64,11 @@ public:
 	}
 
 	virtual uint32_t getWidth() const override {
-		return viewport.width;
+		return (uint32_t)viewport.width;
 	}
 
 	virtual uint32_t getHeight() const override {
-		return viewport.height;
+		return (uint32_t)viewport.height;
 	}
 
 	Engine::Renderer& getRenderer() override;

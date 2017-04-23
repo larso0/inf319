@@ -95,7 +95,7 @@ int main(int argc, char** argv) {
 		globe.setTextureName("globe");
 		Material ground;
 		ground.setTextureName("ground");
-		ground.setTextureScale(100.f, 100.f);
+		ground.setTextureScale(50.f, 50.f);
 		Material statue;
 		statue.setTextureName("statue");
 
@@ -153,7 +153,7 @@ int main(int argc, char** argv) {
 			window.handleEvents();
 
 			double seconds = glfwGetTime();
-			float delta = seconds - time;
+			float delta = (float)(seconds - time);
 			time = seconds;
 
 			if (window.isCursorHidden()) {

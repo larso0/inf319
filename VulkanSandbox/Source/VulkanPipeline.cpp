@@ -13,7 +13,7 @@ VulkanPipeline::VulkanPipeline(const VulkanShaderProgram& program,
 {
 	VkVertexInputBindingDescription vertexBindingDescription = {};
 	vertexBindingDescription.binding = 0;
-	vertexBindingDescription.stride = Vertex::Stride;
+	vertexBindingDescription.stride = (uint32_t)Vertex::Stride;
 	vertexBindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
 	VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
@@ -121,7 +121,7 @@ VulkanPipeline::VulkanPipeline(const VulkanShaderProgram& program,
 
 	VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
 	pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pipelineCreateInfo.stageCount = program.getShaderStageCreateInfos().size();
+	pipelineCreateInfo.stageCount = (uint32_t)program.getShaderStageCreateInfos().size();
 	pipelineCreateInfo.pStages = program.getShaderStageCreateInfos().data();
 	pipelineCreateInfo.pVertexInputState = &vertexInputStateCreateInfo;
 	pipelineCreateInfo.pInputAssemblyState = &inputAssemblyStateCreateInfo;

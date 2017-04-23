@@ -59,7 +59,7 @@ void GLWindow::close() {
 }
 
 bool GLWindow::shouldClose() const {
-	return glfwWindowShouldClose(handle);
+	return glfwWindowShouldClose(handle) != 0;
 }
 
 void GLWindow::resize(uint32_t w, uint32_t h) {

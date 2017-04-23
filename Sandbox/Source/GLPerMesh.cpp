@@ -35,19 +35,19 @@ static GLuint createVAO(GLuint vertexBuffer, GLint vertexPosition,
 	if (vertexPosition >= 0) {
 		glEnableVertexAttribArray(vertexPosition);
 		glVertexAttribPointer(vertexPosition, 3, GL_FLOAT, GL_FALSE,
-			Vertex::Stride, (const GLvoid*) Vertex::PositionOffset);
+			(GLsizei)Vertex::Stride, (const GLvoid*) Vertex::PositionOffset);
 	}
 
 	if (vertexNormal >= 0) {
 		glEnableVertexAttribArray(vertexNormal);
 		glVertexAttribPointer(vertexNormal, 3, GL_FLOAT, GL_FALSE,
-			Vertex::Stride, (const GLvoid*) Vertex::NormalOffset);
+			(GLsizei)Vertex::Stride, (const GLvoid*) Vertex::NormalOffset);
 	}
 
 	if (vertexTextureCoordinate >= 0) {
 		glEnableVertexAttribArray(vertexTextureCoordinate);
 		glVertexAttribPointer(vertexTextureCoordinate, 2, GL_FLOAT, GL_FALSE,
-			Vertex::Stride, (const GLvoid*) Vertex::TextureCoordinateOffset);
+			(GLsizei)Vertex::Stride, (const GLvoid*) Vertex::TextureCoordinateOffset);
 	}
 
 	return vao;
@@ -76,7 +76,7 @@ indexed(false)
 		throw runtime_error("Unknown topology.");
 	}
 
-	elementCount = mesh->getElementCount();
+	elementCount = (uint32_t)mesh->getElementCount();
 	GLuint vertexBuffer = createVertexBuffer(*mesh);
 	buffers.push_back(vertexBuffer);
 	const IndexedMesh* indexedMesh = dynamic_cast<const IndexedMesh*>(mesh);
@@ -93,7 +93,7 @@ indexed(false)
 }
 
 GLPerMesh::~GLPerMesh() {
-	glDeleteBuffers(buffers.size(), buffers.data());
+	glDeleteBuffers((GLsizei)buffers.size(), buffers.data());
 	glDeleteVertexArrays(1, &vao);
 }
 

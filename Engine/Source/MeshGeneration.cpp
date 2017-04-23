@@ -56,7 +56,7 @@ namespace Engine {
 	}
 
 	static glm::vec2 sphereUv(glm::vec3& p) {
-		float twoPi = 2 * M_PI;
+		float twoPi = (float)(2 * M_PI);
 		glm::vec2 uv;
 		uv.x = 0.5f - ((float)atan2(p.z, p.x) / twoPi);
 		uv.y = 0.5f - 2.0f * ((float)asin(p.y) / twoPi);
@@ -108,7 +108,7 @@ namespace Engine {
 							texCoord.x -= 1;
 							vertex.textureCoordinate = texCoord;
 							vertices.push_back(vertex);
-							uint32_t correctedVertexIndex = vertices.size() - 1;
+							uint32_t correctedVertexIndex = (uint32_t)(vertices.size() - 1);
 							correctionList[index] = correctedVertexIndex;
 							newIndices.push_back(correctedVertexIndex);
 						}
