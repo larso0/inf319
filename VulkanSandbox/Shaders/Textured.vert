@@ -25,8 +25,7 @@ void main() {
     gl_Position.y = -gl_Position.y;
     fragmentNormal = normalize(mat3(entityData.normal) * vertexNormal);
     fragmentTextureCoordinate = vertexTextureCoordinate * entityData.textureScale;
-	while (fragmentTextureCoordinate.x > 1.0) fragmentTextureCoordinate.x -= 1.0;
-	while (fragmentTextureCoordinate.y > 1.0) fragmentTextureCoordinate.y -= 1.0;
+	fragmentTextureCoordinate = fract(fragmentTextureCoordinate);
 	fragmentTextureCoordinate *= vec2(entityData.textureRegion.w, entityData.textureRegion.h);
 	fragmentTextureCoordinate += vec2(entityData.textureRegion.x, entityData.textureRegion.y);
 }
