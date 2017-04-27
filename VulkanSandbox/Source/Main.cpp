@@ -83,8 +83,6 @@ int main(int argc, char** argv) {
 		IndexedMesh supriseMesh = loadMesh("../Assets/monkey.obj");
 		IndexedMesh terrainMesh = loadMesh("../Assets/terrain.obj");
 
-		Material darkGreen;
-		darkGreen.setColor(0.f, 0.5f, 0.f, 1.f);
 		Material red;
 		red.setColor(1.f, 0.f, 0.f, 1.f);
 		Material green;
@@ -96,13 +94,11 @@ int main(int argc, char** argv) {
 		Material ground;
 		ground.setTextureName("ground");
 		ground.setTextureScale(50.f, 50.f);
-		Material statue;
-		statue.setTextureName("statue");
 
 		Geometry greenTerrain(&terrainMesh, &ground);
-		Geometry redCube(&cubeMesh, &statue);
-		Geometry greenCube(&cubeMesh, &green);
-		Geometry blueSphere(&sphereMesh, &globe);
+		Geometry cubeGeometry(&cubeMesh, &blue);
+		Geometry stretchedCube(&cubeMesh, &green);
+		Geometry sphereGeometry(&sphereMesh, &globe);
 		Geometry redSuprise(&supriseMesh, &red);
 
 		Node terrain;
@@ -118,9 +114,9 @@ int main(int argc, char** argv) {
 		terrain.update();
 
 		Entity e0(&terrain, &greenTerrain),
-			   e1(&cube1, &redCube),
-			   e2(&cube2, &greenCube),
-			   e3(&sphere, &blueSphere),
+			   e1(&cube1, &cubeGeometry),
+			   e2(&cube2, &stretchedCube),
+			   e3(&sphere, &sphereGeometry),
 			   e4(&suprise, &redSuprise);
 		e2.setScale(0.2f, 2.f, 0.2f);
 

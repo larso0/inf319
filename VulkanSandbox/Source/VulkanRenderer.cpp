@@ -132,7 +132,8 @@ void VulkanRenderer::render() {
 
 	void* mapped = lightDataBuffer->mapMemory(0, lightDataStride);
 	LightData& lightData = *((LightData*) ((char*) mapped));
-	lightData.direction = lightSources[0]->getDirection();
+	lightData.direction = glm::vec4(lightSources[0]->getDirection(), 0.0);
+	lightData.color = glm::vec4(lightSources[0]->getColor(), 1.0);
 	lightDataBuffer->unmapMemory();
 
 	VkDeviceSize neededSize = entities.size() * entityDataStride;

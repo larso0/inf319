@@ -14,12 +14,27 @@ public:
 
 	void render() override;
 
+	void setTextureAtlas(const Engine::TextureAtlas* atlas) override;
+
 private:
 	GLWindow& window;
-	GLuint drawProgram;
-	GLint vertexPosition, vertexNormal, vertexTextureCoordinate;
-	GLint worldViewProjectionMatrixUniform, normalMatrixUniform, entityColorUniform, lightDirectionUniform, lightColorUniform;
+	GLuint drawProgram, texturedDrawProgram;
+	GLint vertexPosition, vertexNormal;
+	GLint texturedVertexPosition, texturedVertexNormal, texturedVertexTextureCoordinate;
+	GLint worldViewProjectionMatrixUniform,
+		  normalMatrixUniform,
+		  entityColorUniform,
+		  lightDirectionUniform,
+		  lightColorUniform;
+	GLint texturedWorldViewProjectionMatrixUniform,
+		  texturedNormalMatrixUniform,
+		  texturedLightDirectionUniform,
+		  texturedLightColorUniform,
+		  textureRegionUniform,
+		  textureScaleUniform;
 	std::unordered_map<const Engine::Mesh*, std::shared_ptr<GLPerMesh>> meshCache;
+	GLuint texture;
+	bool haveTexture;
 };
 
 #endif

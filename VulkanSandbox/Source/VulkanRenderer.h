@@ -40,7 +40,8 @@ private:
 	};
 
 	struct LightData {
-		glm::vec3 direction;
+		glm::vec4 direction;
+		glm::vec4 color;
 	};
 
 	VkDeviceSize entityDataStride, lightDataStride;

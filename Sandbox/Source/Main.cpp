@@ -71,26 +71,32 @@ int main(int argc, char** argv) {
 		Window& window = context.createWindow(1024, 768, 0);
 		Renderer& renderer = window.getRenderer();
 
+		TextureAtlas atlas("../Assets/textureAtlas.png", "../Assets/textureAtlas.meta");
+		renderer.setTextureAtlas(&atlas);
+
 		KeyHandler keyHandler(window);
 
 		Mesh cubeMesh = generateCube();
-		IndexedMesh sphereMesh = generateSphere(5);
-		IndexedMesh supriseMesh = loadMesh("../Assets/teapot.obj");
+		IndexedMesh sphereMesh = generateSphere(3);
+		IndexedMesh supriseMesh = loadMesh("../Assets/monkey.obj");
 		IndexedMesh terrainMesh = loadMesh("../Assets/terrain.obj");
-		
-		Material darkGreen;
-		darkGreen.setColor(0.f, 0.5f, 0.f, 1.f);
+
 		Material red;
 		red.setColor(1.f, 0.f, 0.f, 1.f);
 		Material green;
 		green.setColor(0.f, 1.f, 0.f, 1.f);
 		Material blue;
 		blue.setColor(0.f, 0.f, 1.f, 1.f);
-		
-		Geometry greenTerrain(&terrainMesh, &darkGreen);
-		Geometry redCube(&cubeMesh, &red);
-		Geometry greenCube(&cubeMesh, &green);
-		Geometry blueSphere(&sphereMesh, &blue);
+		Material globe;
+		globe.setTextureName("globe");
+		Material ground;
+		ground.setTextureName("ground");
+		ground.setTextureScale(50.f, 50.f);
+
+		Geometry greenTerrain(&terrainMesh, &ground);
+		Geometry cubeGeometry(&cubeMesh, &blue);
+		Geometry stretchedCube(&cubeMesh, &green);
+		Geometry sphereGeometry(&sphereMesh, &globe);
 		Geometry redSuprise(&supriseMesh, &red);
 
 		Node terrain;
@@ -106,12 +112,12 @@ int main(int argc, char** argv) {
 		terrain.update();
 
 		Entity e0(&terrain, &greenTerrain),
-			   e1(&cube1, &redCube),
-			   e2(&cube2, &greenCube),
-			   e3(&sphere, &blueSphere),
+			   e1(&cube1, &cubeGeometry),
+			   e2(&cube2, &stretchedCube),
+			   e3(&sphere, &sphereGeometry),
 			   e4(&suprise, &redSuprise);
 		e2.setScale(0.2f, 2.f, 0.2f);
-		
+
 		LightSource light;
 		light.setDirection(-0.5f, 1.f, 0.f);
 		light.setColor(0.9f, 0.9f, 0.7f);

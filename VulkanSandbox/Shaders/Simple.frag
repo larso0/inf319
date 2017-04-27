@@ -10,6 +10,6 @@ layout (set = 0, binding = 1) uniform LightData {
 } lightData;
 
 void main() {
-	float lightIntensity = clamp(dot(lightData.direction, fragmentNormal), 0, 1) * 0.8;
-    color = fragmentColor * (0.2 + lightIntensity);;
+	float lightIntensity = clamp(dot(lightData.direction, fragmentNormal), 0, 1) * 0.85;
+    color = fragmentColor * (0.15 + lightIntensity);;
 }

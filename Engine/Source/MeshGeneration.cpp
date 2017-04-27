@@ -197,7 +197,7 @@ namespace Engine {
 		subdivide(m, 8, 6, 7, subdivisions);
 		subdivide(m, 9, 8, 1, subdivisions);
 
-		repairTextureWrapSeam(m.getVertices(), m.getIndices());
+		//repairTextureWrapSeam(m.getVertices(), m.getIndices()); //currently doesn't matter because texture atlas
 
 		return m;
 	}
