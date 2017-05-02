@@ -103,6 +103,10 @@ particleBuffer(bp::buffer_object(GL_DYNAMIC_DRAW))
 	front = 4;
 }
 
+ParticleSystem::~ParticleSystem() {
+	glDeleteVertexArrays(1, &vao);
+}
+
 void ParticleSystem::draw(const Camera& camera) {
 	particleDrawProgram.use();
 	glm::mat4 viewProjection = camera.getProjectionMatrix() * camera.getViewMatrix();
