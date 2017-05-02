@@ -37,8 +37,14 @@ set(ENGINE_SRC_FILES
 	${ENGINE_SRC}/Vertex.cpp
 )
 
+set(SANDBOX_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/Sandbox/Include)
 set(SANDBOX_SRC ${CMAKE_CURRENT_SOURCE_DIR}/Sandbox/Source)
 set(SANDBOX_SRC_FILES
+	${SANDBOX_INCLUDE}/bp/buffer.h
+	${SANDBOX_INCLUDE}/bp/message.h
+	${SANDBOX_INCLUDE}/bp/program.h
+	${SANDBOX_INCLUDE}/bp/shader.h
+	${SANDBOX_SRC}/buffer.cpp
 	${SANDBOX_SRC}/glad.c
 	${SANDBOX_SRC}/GLContext.cpp
 	${SANDBOX_SRC}/GLContext.h
@@ -49,6 +55,11 @@ set(SANDBOX_SRC_FILES
 	${SANDBOX_SRC}/GLWindow.cpp
 	${SANDBOX_SRC}/GLWindow.h
 	${SANDBOX_SRC}/Main.cpp
+	${SANDBOX_SRC}/message.cpp
+	${SANDBOX_SRC}/ParticleSystem.cpp
+	${SANDBOX_SRC}/ParticleSystem.h
+	${SANDBOX_SRC}/program.cpp
+	${SANDBOX_SRC}/shader.cpp
 )
 
 set(VULKANSANDBOX_SRC ${CMAKE_CURRENT_SOURCE_DIR}/VulkanSandbox/Source)
@@ -101,6 +112,7 @@ find_package(Vulkan REQUIRED)
 include_directories(
 	${MIDDLEWARE_INCLUDE}
 	${ENGINE_INCLUDE}
+	${SANDBOX_INCLUDE}
 	${GLFW_INCLUDE_DIR}
 	${OPENGL_INCLUDE_DIRS}
 	${Vulkan_INCLUDE_DIRS}

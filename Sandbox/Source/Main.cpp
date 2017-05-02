@@ -9,6 +9,7 @@
 #include <fstream>
 #include "GLContext.h"
 #include "GLWindow.h"
+#include "ParticleSystem.h"
 
 using namespace std;
 using namespace Engine;
@@ -140,9 +141,12 @@ int main(int argc, char** argv) {
 		renderer.addLightSource(&light);
 		renderer.setCamera(&camera);
 
+		ParticleSystem particleSystem(nullptr);
+
 		float yaw = 0.f, pitch = 0.f;
 		double time = glfwGetTime();
 		while (!window.shouldClose()) {
+			particleSystem.draw(camera);
 			renderer.render();
 			window.handleEvents();
 
