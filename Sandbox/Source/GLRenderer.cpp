@@ -155,7 +155,7 @@ static GLuint createTexture(const Texture* tex) {
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	
+
 	return handle;
 }
 
@@ -163,7 +163,8 @@ GLRenderer::GLRenderer(GLWindow& window) :
 Renderer(),
 window(window),
 texture(0),
-haveTexture(false)
+haveTexture(false),
+particleSystem(ParticleSystem(nullptr))
 {
 	drawProgram = createDrawProgram(vertexShaderSource, fragmentShaderSource);
 	texturedDrawProgram = createDrawProgram(texturedVertexShaderSource, texturedFragmentShaderSource);
@@ -259,6 +260,7 @@ void GLRenderer::render() {
 		perMesh->bind();
 		perMesh->draw();
 	}
+	particleSystem.draw(*camera);
 	window.present();
 }
 

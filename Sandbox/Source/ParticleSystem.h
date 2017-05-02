@@ -32,7 +32,7 @@ private:
 	bp::program particleDrawProgram;
 	GLuint vao;
 
-	GLint viewProjectionUniform;
+	GLint viewMatrixUniform, projectionMatrixUniform;
 
 };
 

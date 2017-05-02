@@ -6,6 +6,7 @@
 #include <memory>
 #include "GLPerMesh.h"
 #include "GLWindow.h"
+#include "ParticleSystem.h"
 
 class GLRenderer : public Engine::Renderer {
 public:
@@ -35,6 +36,8 @@ private:
 	std::unordered_map<const Engine::Mesh*, std::shared_ptr<GLPerMesh>> meshCache;
 	GLuint texture;
 	bool haveTexture;
+
+	ParticleSystem particleSystem;
 };
 
 #endif

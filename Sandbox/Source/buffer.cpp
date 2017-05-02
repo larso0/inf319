@@ -7,9 +7,9 @@ namespace bp
     {
         if(!m_init)
         {
-            if(m_size == 0 || m_buffer_data == nullptr)
+            if(m_size == 0)
             {
-                throw std::runtime_error("No data to upload to the buffer.");
+                throw std::runtime_error("Buffer size can't be 0.");
             }
             glGenBuffers(1, &m_handle);
             glBindBuffer(target, m_handle);
