@@ -9,6 +9,8 @@
 #include <fstream>
 #include "GLContext.h"
 #include "GLWindow.h"
+#include "GLRenderer.h"
+#include "ParticleSystem.h"
 
 using namespace std;
 using namespace Engine;
@@ -65,6 +67,26 @@ private:
 	float clipNear, clipFar;
 };
 
+class MouseHandler : public MouseEventHandler {
+public:
+	MouseHandler(ParticleSystem& ps, const Window& win) :
+	particleSystem(ps), window(win) {}
+
+	void buttonPress(MouseButton btn, Modifier) {
+		if (!window.isCursorHidden()) return;
+		switch (btn) {
+		case MouseButton::Left:
+			particleSystem.emit(5.f, glm::vec3(0.f, 0.f, -1.f));
+			break;
+		default:
+			break;
+		}
+	}
+private:
+	ParticleSystem& particleSystem;
+	const Window& window;
+};
+
 int main(int argc, char** argv) {
 	try {
 		GLContext context;
@@ -104,8 +126,7 @@ int main(int argc, char** argv) {
 		Node cube2(&cube1);
 		Node sphere(&cube1);
 		Node suprise(&cube2);
-		//cube1.translate(0.f, 30.f, 0.f);
-		terrain.translate(0.f, -30.f, 0.f);
+		cube1.translate(0.f, 30.f, 0.f);
 		cube2.translate(2.f, 0.f, 0.f);
 		cube2.rotate(glm::radians(45.f), glm::vec3(0.f, 1.f, 0.f));
 		sphere.translate(0.f, 2.f, 0.f);
@@ -124,7 +145,7 @@ int main(int argc, char** argv) {
 		light.setColor(0.9f, 0.9f, 0.7f);
 
 		Node cameraNode;
-		//cameraNode.translate(0.f, 30.f, 3.f);
+		cameraNode.translate(0.f, 30.f, 3.f);
 		cameraNode.update();
 
 		Camera camera(&cameraNode);
@@ -134,12 +155,16 @@ int main(int argc, char** argv) {
 		camera.update();
 
 		renderer.addEntity(&e0);
-		//renderer.addEntity(&e1);
-		//renderer.addEntity(&e2);
-		//renderer.addEntity(&e3);
-		//renderer.addEntity(&e4);
+		renderer.addEntity(&e1);
+		renderer.addEntity(&e2);
+		renderer.addEntity(&e3);
+		renderer.addEntity(&e4);
 		renderer.addLightSource(&light);
 		renderer.setCamera(&camera);
+		ParticleSystem particleSystem(&cameraNode);
+		((GLRenderer&)renderer).setParticleSystem(&particleSystem);
+		MouseHandler mouseHandler(particleSystem, window);
+		window.addEventHandler((EventHandler*)&mouseHandler);
 
 		float yaw = 0.f, pitch = 0.f;
 		double time = glfwGetTime();
@@ -150,6 +175,8 @@ int main(int argc, char** argv) {
 			double seconds = glfwGetTime();
 			float delta = (float)(seconds - time);
 			time = seconds;
+
+			particleSystem.compute(delta);
 
 			if (window.isCursorHidden()) {
 				glm::vec3 cameraDirection = quatTransform(

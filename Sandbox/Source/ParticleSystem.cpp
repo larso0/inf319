@@ -15,18 +15,21 @@ particleBuffer(bp::buffer_object(GL_DYNAMIC_DRAW))
 {
 	particleBuffer.buffer_data(nullptr, sizeof(Particle)*maxParticles);
 
-	/*bp::shader cshader(
+	bp::shader cshader(
 		GL_COMPUTE_SHADER,
 		"#version 450\n"
-		"layout(local_size_x = 32) in;\n"
+		"layout (local_size_x = 1) in;\n"
 		"struct Particle { vec3 position; vec3 velocity; };\n"
 		"layout (binding = 0) buffer ParticleBuffer { Particle particles[]; };\n"
-		"\n"
-		"\n"
-		"\n"
+		"uniform float deltaTime;\n"
+		"void main() {\n"
+		"	uint i = gl_GlobalInvocationID.x;\n"
+		"	particles[i].position += deltaTime * particles[i].velocity;\n"
+		"}\n"
 	);
 
-	particleComputeProgram.attach(cshader);*/
+	particleComputeProgram.attach(cshader);
+	deltaTimeUniform = particleComputeProgram.uniform("deltaTime");
 
 	bp::shader vshader(
 		GL_VERTEX_SHADER,
@@ -45,25 +48,26 @@ particleBuffer(bp::buffer_object(GL_DYNAMIC_DRAW))
 		"layout (triangle_strip, max_vertices = 4) out;\n"
 		"uniform mat4 projectionMatrix;\n"
 		"void main() {\n"
+		"	float s = 0.1f;\n"
 		"	vec4 pos = gl_in[0].gl_Position;\n"
 		"	gl_Position = pos;\n"
-		"	gl_Position.x -= 0.5;\n"
-		"	gl_Position.y += 0.5;\n"
+		"	gl_Position.x -= s;\n"
+		"	gl_Position.y += s;\n"
 		"	gl_Position = projectionMatrix * gl_Position;\n"
 		"	EmitVertex();\n"
 		"	gl_Position = pos;\n"
-		"	gl_Position.x -= 0.5;\n"
-		"	gl_Position.y -= 0.5;\n"
+		"	gl_Position.x -= s;\n"
+		"	gl_Position.y -= s;\n"
 		"	gl_Position = projectionMatrix * gl_Position;\n"
 		"	EmitVertex();\n"
 		"	gl_Position = pos;\n"
-		"	gl_Position.x += 0.5;\n"
-		"	gl_Position.y += 0.5;\n"
+		"	gl_Position.x += s;\n"
+		"	gl_Position.y += s;\n"
 		"	gl_Position = projectionMatrix * gl_Position;\n"
 		"	EmitVertex();\n"
 		"	gl_Position = pos;\n"
-		"	gl_Position.x += 0.5;\n"
-		"	gl_Position.y -= 0.5;\n"
+		"	gl_Position.x += s;\n"
+		"	gl_Position.y -= s;\n"
 		"	gl_Position = projectionMatrix * gl_Position;\n"
 		"	EmitVertex();\n"
 		"	EndPrimitive();\n"
@@ -93,21 +97,17 @@ particleBuffer(bp::buffer_object(GL_DYNAMIC_DRAW))
 	particleBuffer.bind(GL_ARRAY_BUFFER);
 	glEnableVertexAttribArray(posAttribute);
 	glVertexAttribPointer(posAttribute, 3, GL_FLOAT, false, sizeof(Particle), 0);
-
-	//Temporary particles for testing
-	Particle* particles = (Particle*)
-		glMapBufferRange(GL_ARRAY_BUFFER, 0, sizeof(Particle)*4, GL_MAP_WRITE_BIT);
-	particles[0] = { vec3(0.f, 0.f, 0.f), vec3() };
-	particles[1] = { vec3(-1.f, -2.f, -2.f), vec3() };
-	particles[2] = { vec3(-2.f, 1.f, -1.f), vec3() };
-	particles[3] = { vec3(-2.f, 2.f, -2.f), vec3() };
-	glUnmapBuffer(GL_ARRAY_BUFFER);
-	particleCount = 4;
-	front = 4;
 }
 
 ParticleSystem::~ParticleSystem() {
 	glDeleteVertexArrays(1, &vao);
+}
+
+void ParticleSystem::compute(float deltaTime) {
+	particleComputeProgram.use();
+	glUniform1f(deltaTimeUniform, deltaTime);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, particleBuffer.handle());
+	glDispatchCompute(particleCount, 1, 1);
 }
 
 void ParticleSystem::draw(const Camera& camera) {
@@ -116,4 +116,22 @@ void ParticleSystem::draw(const Camera& camera) {
 	glUniformMatrix4fv(projectionMatrixUniform, 1, false, glm::value_ptr(camera.getProjectionMatrix()));
 	glBindVertexArray(vao);
 	glDrawArrays(GL_POINTS, 0, particleCount);
+}
+
+void ParticleSystem::emit(float speed, const glm::vec3& direction) {
+	glm::vec3 velocity =
+		quatTransform(emitter->getOrientation(), direction) * speed;
+	particleBuffer.bind(GL_ARRAY_BUFFER);
+	Particle* particle = (Particle*)
+		glMapBufferRange(GL_ARRAY_BUFFER, front * sizeof(Particle),
+			sizeof(Particle), GL_MAP_WRITE_BIT);
+	particle->position = emitter->getPosition();
+	particle->velocity = velocity;
+	glUnmapBuffer(GL_ARRAY_BUFFER);
+	if (particleCount < maxParticles) {
+		particleCount++;
+		front++;
+	} else {
+		front = (front + 1) % maxParticles;
+	}
 }

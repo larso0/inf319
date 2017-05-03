@@ -12,9 +12,9 @@ public:
 	ParticleSystem(Engine::Node* emitter, unsigned maxParticles = 1024);
 	~ParticleSystem();
 
-	void compute();
+	void compute(float deltaTime);
 	void draw(const Engine::Camera& camera);
-	void emit(float speed);
+	void emit(float speed, const glm::vec3& direction);
 
 private:
 	Engine::Node* emitter;
@@ -24,7 +24,9 @@ private:
 
 	struct Particle {
 		glm::vec3 position;
+		float pad0;
 		glm::vec3 velocity;
+		float pad1;
 	};
 
 	bp::buffer_object particleBuffer;
@@ -32,8 +34,7 @@ private:
 	bp::program particleDrawProgram;
 	GLuint vao;
 
-	GLint viewMatrixUniform, projectionMatrixUniform;
-
+	GLint viewMatrixUniform, projectionMatrixUniform, deltaTimeUniform;
 };
 
 #endif

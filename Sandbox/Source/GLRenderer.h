@@ -16,6 +16,9 @@ public:
 	void render() override;
 
 	void setTextureAtlas(const Engine::TextureAtlas* atlas) override;
+	void setParticleSystem(ParticleSystem* ps) {
+		particleSystem = ps;
+	}
 
 private:
 	GLWindow& window;
@@ -37,7 +40,8 @@ private:
 	GLuint texture;
 	bool haveTexture;
 
-	ParticleSystem particleSystem;
+	ParticleSystem* particleSystem;
+	double currentTime;
 };
 
 #endif

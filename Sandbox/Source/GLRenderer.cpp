@@ -164,7 +164,7 @@ Renderer(),
 window(window),
 texture(0),
 haveTexture(false),
-particleSystem(ParticleSystem(nullptr))
+particleSystem(nullptr)
 {
 	drawProgram = createDrawProgram(vertexShaderSource, fragmentShaderSource);
 	texturedDrawProgram = createDrawProgram(texturedVertexShaderSource, texturedFragmentShaderSource);
@@ -188,6 +188,8 @@ particleSystem(ParticleSystem(nullptr))
 	textureScaleUniform = glGetUniformLocation(texturedDrawProgram, "textureScale");
 
 	glUseProgram(drawProgram);
+
+	currentTime = glfwGetTime();
 }
 
 GLRenderer::~GLRenderer() {
@@ -260,8 +262,12 @@ void GLRenderer::render() {
 		perMesh->bind();
 		perMesh->draw();
 	}
-	particleSystem.draw(*camera);
+	if (particleSystem) particleSystem->draw(*camera);
 	window.present();
+
+	double seconds = glfwGetTime();
+	float delta = (float)(seconds - currentTime);
+	currentTime = seconds;
 }
 
 void GLRenderer::setTextureAtlas(const Engine::TextureAtlas* atlas) {
