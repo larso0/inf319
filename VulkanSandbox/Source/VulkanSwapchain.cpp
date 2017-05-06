@@ -25,12 +25,18 @@ void VulkanSwapchain::init(VkExtent2D& extent) {
 	vector<VkSurfaceFormatKHR> surfaceFormats(n);
 	vkGetPhysicalDeviceSurfaceFormatsKHR(device->getPhysicalDevice(), surface, &n,
 		surfaceFormats.data());
-    
-    if (n != 1 || surfaceFormats[0].format != VK_FORMAT_UNDEFINED) {
-		format = surfaceFormats[0].format;
+
+	if (n == 1 && surfaceFormats[0].format == VK_FORMAT_UNDEFINED) {
+		format = VK_FORMAT_B8G8R8_UNORM;
+		colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
+	} else {
+		uint32_t i;
+		for (i = 0; i < n && surfaceFormats[i].format != VK_FORMAT_B8G8R8A8_UNORM; i++);
+		if (i == n) i = 0;
+		format = surfaceFormats[i].format;
+		colorSpace = surfaceFormats[i].colorSpace;
 	}
-	colorSpace = surfaceFormats[0].colorSpace;
-    
+
     VkSurfaceCapabilitiesKHR surfaceCapabilities = {};
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device->getPhysicalDevice(), surface,
 		&surfaceCapabilities);
@@ -41,27 +47,27 @@ void VulkanSwapchain::init(VkExtent2D& extent) {
 		imageCount > surfaceCapabilities.maxImageCount) {
 		imageCount = surfaceCapabilities.maxImageCount;
 	}
-	
+
 	resolution = surfaceCapabilities.currentExtent;
-    if (resolution.width == -1) {
+    if (resolution.width == 0xFFFFFFFF) {
 		resolution = extent;
     } else {
 		extent = resolution;
 	}
-	
+
 	VkSurfaceTransformFlagBitsKHR preTransform =
 		surfaceCapabilities.currentTransform;
 	if (surfaceCapabilities.supportedTransforms &
 		VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) {
 		preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
 	}
-	
+
 	vkGetPhysicalDeviceSurfacePresentModesKHR(device->getPhysicalDevice(), surface, &n,
 		nullptr);
 	vector<VkPresentModeKHR> presentModes(n);
 	vkGetPhysicalDeviceSurfacePresentModesKHR(device->getPhysicalDevice(), surface, &n,
 		presentModes.data());
-	
+
 	VkPresentModeKHR presentationMode = VK_PRESENT_MODE_FIFO_KHR;
 	for (uint32_t i = 0; i < n; i++) {
 		if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
@@ -71,7 +77,7 @@ void VulkanSwapchain::init(VkExtent2D& extent) {
 	}
 
 	VkSwapchainKHR oldSwapchain = handle;
-	
+
 	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	createInfo.pNext = nullptr;
 	createInfo.flags = 0;
@@ -107,9 +113,9 @@ void VulkanSwapchain::init(VkExtent2D& extent) {
 	vkGetSwapchainImagesKHR(device->getHandle(), handle, &n, nullptr);
 	images.resize(n);
 	vkGetSwapchainImagesKHR(device->getHandle(), handle, &n, images.data());
-	
+
 	imagesTransitioned = vector<bool>(n, false);
-	
+
 	VkImageViewCreateInfo imageViewInfo = {};
 	imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
@@ -135,7 +141,7 @@ void VulkanSwapchain::init(VkExtent2D& extent) {
 			throw runtime_error("Unable to create swapchain image view.");
 		}
 	}
-	
+
 	VkSemaphoreCreateInfo semInfo = {
 		VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
 		0, 0
@@ -143,7 +149,7 @@ void VulkanSwapchain::init(VkExtent2D& extent) {
 	if (!inited) {
 		vkCreateSemaphore(device->getHandle(), &semInfo, nullptr, &presentSemaphore);
 	}
-	
+
 	inited = true;
 }
 

@@ -205,6 +205,7 @@ void GLWindow::cursorEnterCallback(GLFWwindow* handle, int entered) {
 }
 
 void GLWindow::windowSizeCallback(GLFWwindow* handle, int w, int h) {
+	if (w <= 0 || h <= 0) return;
 	GLWindow& window = *((GLWindow*)glfwGetWindowUserPointer(handle));
 	for (Engine::WindowEventHandler* handler : window.windowEventHandlers) {
 		handler->resize(w, h);

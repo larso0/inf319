@@ -319,6 +319,7 @@ void VulkanWindow::cursorEnterCallback(GLFWwindow* handle, int entered) {
 }
 
 void VulkanWindow::windowSizeCallback(GLFWwindow* handle, int w, int h) {
+	if (w <= 0 || h <= 0) return;
 	VulkanWindow& window = *((VulkanWindow*)glfwGetWindowUserPointer(handle));
 	for (Engine::WindowEventHandler* handler : window.windowEventHandlers) {
 		handler->resize(w, h);
