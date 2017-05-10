@@ -19,7 +19,7 @@ public:
 	void render() override;
 
 	void setTextureAtlas(const Engine::TextureAtlas* atlas) override;
-	void createParticleSystem();
+	ParticleSystem* createParticleSystem();
 
 private:
 	VulkanWindow& window;

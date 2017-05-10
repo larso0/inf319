@@ -67,6 +67,26 @@ private:
 	float clipNear, clipFar;
 };
 
+class MouseHandler : public MouseEventHandler {
+public:
+	MouseHandler(ParticleSystem& ps, const Window& win) :
+	particleSystem(ps), window(win) {}
+
+	void buttonPress(MouseButton btn, Modifier) {
+		if (!window.isCursorHidden()) return;
+		switch (btn) {
+		case MouseButton::Left:
+			particleSystem.emit(5.f, glm::vec3(0.f, 0.f, -1.f));
+			break;
+		default:
+			break;
+		}
+	}
+private:
+	ParticleSystem& particleSystem;
+	const Window& window;
+};
+
 int main(int argc, char** argv) {
 	try {
 		VulkanContext vkContext;
@@ -142,7 +162,10 @@ int main(int argc, char** argv) {
 		renderer.addEntity(&e4);
 		renderer.addLightSource(&light);
 		renderer.setCamera(&camera);
-		((VulkanRenderer&)renderer).createParticleSystem();
+		ParticleSystem* particleSystem =
+			((VulkanRenderer&)renderer).createParticleSystem();
+		MouseHandler mouseHandler(*particleSystem, window);
+		window.addEventHandler((EventHandler*)&mouseHandler);
 
 		float yaw = 0.f, pitch = 0.f;
 		double time = glfwGetTime();

@@ -210,6 +210,8 @@ void VulkanRenderer::render() {
 	submitInfo.pSignalSemaphores = &renderingCompleteSemaphore;
 	vkQueueSubmit(window.device->getPresentQueue(), 1, &submitInfo, renderFence);
 
+	particleSystem->compute(0.016);
+
 	vkWaitForFences(window.device->getHandle(), 1, &renderFence, VK_TRUE, UINT64_MAX);
 	vkDestroyFence(window.device->getHandle(), renderFence, nullptr);
 
@@ -422,6 +424,9 @@ void VulkanRenderer::createPipelines() {
 	);
 }
 
-void VulkanRenderer::createParticleSystem() {
-	particleSystem = new ParticleSystem(*window.device, window.renderPass, camera->getNode(), 1024);
+ParticleSystem* VulkanRenderer::createParticleSystem() {
+	if (!particleSystem)
+		particleSystem = new ParticleSystem(*window.device, window.renderPass,
+			camera->getNode(), 1024);
+	return particleSystem;
 }

@@ -94,11 +94,28 @@ ParticleSystem::~ParticleSystem() {
 }
 
 void ParticleSystem::compute(float deltaTime) {
-
+    if (!emitQueue.empty()) {
+        Particle* mapped = (Particle*)
+            particleBuffer->mapMemory(0, maxParticles * sizeof(Particle));
+        for (const Particle& p : emitQueue) {
+            if (front == maxParticles) front = 0;
+            mapped[front] = p;
+            if (particleCount < maxParticles) particleCount++;
+            front++;
+        }
+        particleBuffer->unmapMemory();
+        emitQueue.clear();
+    }
 }
 
 void ParticleSystem::recordDraw(const Engine::Camera& camera,
     VkCommandBuffer cmdBuffer, VkViewport vp, VkRect2D scissor) {
+    Matrices& mapped = *(Matrices*)
+        uniformBuffer->mapMemory(computeInfoStride, sizeof(Matrices));
+    mapped.viewMatrix = camera.getViewMatrix();
+    mapped.projectionMatrix = camera.getProjectionMatrix();
+    uniformBuffer->unmapMemory();
+
     vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
         drawPipeline->getHandle());
     vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
