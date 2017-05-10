@@ -106,6 +106,7 @@ int main(int argc, char** argv) {
 		Node cube2(&cube1);
 		Node sphere(&cube1);
 		Node suprise(&cube2);
+		terrain.translate(0.f, -30.f, 0.f);
 		cube1.translate(0.f, 30.f, 0.f);
 		cube2.translate(2.f, 0.f, 0.f);
 		cube2.rotate(glm::radians(45.f), glm::vec3(0.f, 1.f, 0.f));
@@ -125,7 +126,7 @@ int main(int argc, char** argv) {
 		light.setColor(0.9f, 0.9f, 0.7f);
 
 		Node cameraNode;
-		cameraNode.translate(0.f, 30.f, 3.f);
+		//cameraNode.translate(0.f, 30.f, 3.f);
 		cameraNode.update();
 
 		Camera camera(&cameraNode);
@@ -141,6 +142,7 @@ int main(int argc, char** argv) {
 		renderer.addEntity(&e4);
 		renderer.addLightSource(&light);
 		renderer.setCamera(&camera);
+		((VulkanRenderer&)renderer).createParticleSystem();
 
 		float yaw = 0.f, pitch = 0.f;
 		double time = glfwGetTime();

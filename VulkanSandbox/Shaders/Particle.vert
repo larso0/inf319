@@ -1,6 +1,6 @@
 #version 450
 layout (location = 0) in vec3 vertexPosition;
-layout (set = 1, binding = 2) uniform Matrices {
+layout (set = 0, binding = 2) uniform Matrices {
 	uniform mat4 viewMatrix;
 	uniform mat4 projectionMatrix;
 };

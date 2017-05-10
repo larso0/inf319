@@ -1,28 +1,11 @@
 #include "VulkanRenderer.h"
+#include "VulkanUtil.h"
 #include <string>
 #include <vector>
 #include <fstream>
 
 using namespace std;
 using namespace Engine;
-
-static vector<char> readFile(const string& filename) {
-    ifstream file(filename, ios::ate | ios::binary);
-
-    if (!file.is_open()) {
-        throw runtime_error("failed to open file!");
-    }
-
-    size_t fileSize = (size_t) file.tellg();
-    vector<char> buffer(fileSize);
-
-    file.seekg(0);
-    file.read(buffer.data(), fileSize);
-
-    file.close();
-
-    return buffer;
-}
 
 VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 	Renderer(),
@@ -31,15 +14,16 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window) :
 	texturedProgram(VulkanShaderProgram(*window.device)),
 	descriptorPool(VK_NULL_HANDLE),
 	renderingCompleteSemaphore(VK_NULL_HANDLE),
-	texture(nullptr)
+	texture(nullptr),
+	particleSystem(nullptr)
 {
-	vector<char> vertexShaderCode = readFile("Shaders/Simple.vert.spv");
-	vector<char> fragmentShaderCode = readFile("Shaders/Simple.frag.spv");
+	vector<char> vertexShaderCode = readBinaryFile("Shaders/Simple.vert.spv");
+	vector<char> fragmentShaderCode = readBinaryFile("Shaders/Simple.frag.spv");
 	program.addShaderStage(vertexShaderCode, VK_SHADER_STAGE_VERTEX_BIT);
 	program.addShaderStage(fragmentShaderCode, VK_SHADER_STAGE_FRAGMENT_BIT);
 
-	vertexShaderCode = readFile("Shaders/Textured.vert.spv");
-	fragmentShaderCode = readFile("Shaders/Textured.frag.spv");
+	vertexShaderCode = readBinaryFile("Shaders/Textured.vert.spv");
+	fragmentShaderCode = readBinaryFile("Shaders/Textured.frag.spv");
 	texturedProgram.addShaderStage(vertexShaderCode, VK_SHADER_STAGE_VERTEX_BIT);
 	texturedProgram.addShaderStage(fragmentShaderCode, VK_SHADER_STAGE_FRAGMENT_BIT);
 
@@ -94,6 +78,7 @@ VulkanRenderer::~VulkanRenderer() {
 	vkDestroySampler(window.device->getHandle(), textureSampler, nullptr);
 	delete simplePipeline;
 	delete texturedPipeline;
+	delete particleSystem;
 }
 
 void VulkanRenderer::render() {
@@ -102,7 +87,7 @@ void VulkanRenderer::render() {
 		throw runtime_error("No camera set.");
 	}
 #endif
-	
+
 	window.swapchain->nextImage();
 
 	VkCommandBufferBeginInfo beginInfo = {};
@@ -110,7 +95,7 @@ void VulkanRenderer::render() {
 	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
 	vkBeginCommandBuffer(window.presentCommandBuffer, &beginInfo);
-	
+
 	window.swapchain->transitionColor(window.presentCommandBuffer);
 
 	VkClearValue clearValue[] = { { 0.5f, 0.5f, 0.5f, 1.f }, { 1.f, 0.f } };
@@ -138,7 +123,7 @@ void VulkanRenderer::render() {
 
 	VkDeviceSize neededSize = entities.size() * entityDataStride;
 	mapped = entityDataBuffer->mapMemory(0, neededSize);
-	for (int i = 0; i < entities.size(); i++) {
+	for (uint32_t i = 0; i < entities.size(); i++) {
 		const Entity& e = *entities[i];
 		EntityData& data = *((EntityData*) ((char*) mapped
 			+ i * entityDataStride));
@@ -160,7 +145,7 @@ void VulkanRenderer::render() {
 	}
 	entityDataBuffer->unmapMemory();
 
-	for (int i = 0; i < entities.size(); i++) {
+	for (uint32_t i = 0; i < entities.size(); i++) {
 		const Entity& e = *entities[i];
 
 		const Mesh* mesh = e.getGeometry()->getMesh();
@@ -196,8 +181,11 @@ void VulkanRenderer::render() {
 		perMesh->record(window.presentCommandBuffer);
 	}
 
+	particleSystem->recordDraw(*camera, window.presentCommandBuffer,
+		window.viewport, window.scissor);
+
 	vkCmdEndRenderPass(window.presentCommandBuffer);
-	
+
 	window.swapchain->transitionPresent(window.presentCommandBuffer);
 
 	vkEndCommandBuffer(window.presentCommandBuffer);
@@ -208,7 +196,7 @@ void VulkanRenderer::render() {
 	vkCreateFence(window.device->getHandle(), &fenceCreateInfo, nullptr, &renderFence);
 
 	VkSemaphore presentSemaphore = window.swapchain->getPresentSemaphore();
-	
+
 	VkPipelineStageFlags waitStageMash =
 		{ VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT };
 	VkSubmitInfo submitInfo = {};
@@ -224,7 +212,7 @@ void VulkanRenderer::render() {
 
 	vkWaitForFences(window.device->getHandle(), 1, &renderFence, VK_TRUE, UINT64_MAX);
 	vkDestroyFence(window.device->getHandle(), renderFence, nullptr);
-	
+
 	window.swapchain->present(renderingCompleteSemaphore);
 }
 
@@ -379,7 +367,7 @@ void VulkanRenderer::setupDescriptors() {
 	descriptorWrites[1].pBufferInfo = &lightBufferInfo;
 	descriptorWrites[1].pImageInfo = nullptr;
 	descriptorWrites[1].pTexelBufferView = nullptr;
-	
+
 	vkUpdateDescriptorSets(window.device->getHandle(), 2, descriptorWrites, 0, nullptr);
 
 	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -415,8 +403,25 @@ void VulkanRenderer::createPipelines() {
 	attribs[2].format = VK_FORMAT_R32G32_SFLOAT;
 	attribs[2].offset = (uint32_t)Vertex::TextureCoordinateOffset;
 
-	simplePipeline = new VulkanPipeline(program, window.renderPass, pipelineLayout,
-		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 2, attribs);
-	texturedPipeline = new VulkanPipeline(texturedProgram, window.renderPass,
-		pipelineLayout, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 3, attribs);
+	simplePipeline = new VulkanPipeline(
+		program,
+		window.renderPass,
+		pipelineLayout,
+		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+		2, attribs,
+		(uint32_t)Vertex::Stride
+	);
+
+	texturedPipeline = new VulkanPipeline(
+		texturedProgram,
+		window.renderPass,
+		pipelineLayout,
+		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+		3, attribs,
+		(uint32_t)Vertex::Stride
+	);
+}
+
+void VulkanRenderer::createParticleSystem() {
+	particleSystem = new ParticleSystem(*window.device, window.renderPass, camera->getNode(), 1024);
 }

@@ -1,19 +1,18 @@
 #include "VulkanPipeline.h"
-#include <Engine/Vertex.h>
 #include <stdexcept>
 
-using Engine::Vertex;
 using namespace std;
 
 VulkanPipeline::VulkanPipeline(const VulkanShaderProgram& program,
 	VkRenderPass renderPass, VkPipelineLayout pipelineLayout,
 	VkPrimitiveTopology topology, uint32_t vertexAttributeCount,
-	const VkVertexInputAttributeDescription* pVertexAttributes) :
+	const VkVertexInputAttributeDescription* pVertexAttributes,
+	uint32_t vertexStride) :
 	device(program.getDevice().getHandle())
 {
 	VkVertexInputBindingDescription vertexBindingDescription = {};
 	vertexBindingDescription.binding = 0;
-	vertexBindingDescription.stride = (uint32_t)Vertex::Stride;
+	vertexBindingDescription.stride = vertexStride;
 	vertexBindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
 	VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};

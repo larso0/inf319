@@ -145,6 +145,7 @@ VulkanDevice::VulkanDevice(const VulkanContext& context,
 		deviceCreateInfo.ppEnabledExtensionNames = &swapchainExtension;
 		features.shaderClipDistance = VK_TRUE;
 		features.samplerAnisotropy = VK_TRUE;
+		features.geometryShader = VK_TRUE;
 	}
 	deviceCreateInfo.pEnabledFeatures = &features;
 }

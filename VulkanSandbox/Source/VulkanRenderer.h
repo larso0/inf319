@@ -9,6 +9,7 @@
 #include <Engine/Renderer.h>
 #include <unordered_map>
 #include <memory>
+#include "ParticleSystem.h"
 
 class VulkanRenderer : public Engine::Renderer {
 public:
@@ -18,6 +19,7 @@ public:
 	void render() override;
 
 	void setTextureAtlas(const Engine::TextureAtlas* atlas) override;
+	void createParticleSystem();
 
 private:
 	VulkanWindow& window;
@@ -46,7 +48,7 @@ private:
 
 	VkDeviceSize entityDataStride, lightDataStride;
 	VkSemaphore renderingCompleteSemaphore;
-	
+
 	VkSampler textureSampler;
 	VulkanTexture* texture;
 	VkDescriptorImageInfo imageInfo;
@@ -54,6 +56,8 @@ private:
 
 	std::unordered_map<const Engine::Mesh*, std::shared_ptr<VulkanPerMesh>>
 	meshCache;
+
+	ParticleSystem* particleSystem;
 
 	void createDescriptorPool();
 	void createDescriptorSetLayout();

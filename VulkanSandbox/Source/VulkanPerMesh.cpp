@@ -72,9 +72,9 @@ void VulkanPerMesh::createBuffers(const Mesh* mesh) {
 }
 
 void VulkanPerMesh::record(VkCommandBuffer cmdBuffer) {
-	VkDeviceSize offsets = {};
+	VkDeviceSize offset = 0;
 	VkBuffer bufferHandle = buffers[0]->getHandle();
-	vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &bufferHandle, &offsets);
+	vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &bufferHandle, &offset);
 
 	if (indexed) {
 		vkCmdBindIndexBuffer(cmdBuffer, buffers[1]->getHandle(), 0,

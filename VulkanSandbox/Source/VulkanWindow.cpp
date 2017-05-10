@@ -56,7 +56,9 @@ void VulkanWindow::init() {
 	}
 
 	device = new VulkanDevice(context,
-		VulkanDevice::Capability::Graphics | VulkanDevice::Capability::Transfer,
+		VulkanDevice::Capability::Graphics |
+		VulkanDevice::Capability::Transfer |
+		VulkanDevice::Capability::Compute,
 		surface);
 	device->init();
 
@@ -297,7 +299,6 @@ void VulkanWindow::cursorPositionCallback(GLFWwindow* handle, double x, double y
 	}
 
 	glm::vec2 position(x, y);
-	glm::vec2 motion = position - window.mouse.position;
 	if (window.mouse.hidden) {
 		window.mouse.motion = position - window.mouse.position;
 	}
