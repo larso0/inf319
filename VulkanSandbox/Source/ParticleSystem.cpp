@@ -39,7 +39,8 @@ drawProgram(device)
     particleBuffer = new VulkanBuffer(
         device,
         maxParticles * sizeof(Particle),
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
     );
@@ -110,8 +111,8 @@ void ParticleSystem::compute(float deltaTime) {
 
 void ParticleSystem::recordDraw(const Engine::Camera& camera,
     VkCommandBuffer cmdBuffer, VkViewport vp, VkRect2D scissor) {
-    Matrices& mapped = *(Matrices*)
-        uniformBuffer->mapMemory(computeInfoStride, sizeof(Matrices));
+    Matrices& mapped = *((Matrices*)
+        uniformBuffer->mapMemory(computeInfoStride, sizeof(Matrices)));
     mapped.viewMatrix = camera.getViewMatrix();
     mapped.projectionMatrix = camera.getProjectionMatrix();
     uniformBuffer->unmapMemory();
