@@ -85,29 +85,35 @@ void VulkanImage::recordTransition(VkImageLayout to, VkCommandBuffer cmdBuffer) 
 	barrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
 	barrier.srcAccessMask = 0;
 	barrier.dstAccessMask = 0;
+
+	VkPipelineStageFlags dstStageMask = 0;
 	
 	if (barrier.oldLayout == VK_IMAGE_LAYOUT_PREINITIALIZED &&
 		barrier.newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
 		barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
 		barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
 	} else if (barrier.oldLayout == VK_IMAGE_LAYOUT_PREINITIALIZED &&
 			   barrier.newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
 		barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
 		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
 	} else if (barrier.oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
 			   barrier.newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
 		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 	} else if (barrier.newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
 		barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
 								VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+		dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 	} else {
 		throw runtime_error("Unsupported image layout transition.");
 	}
 	
 	vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-						 VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr,
+						 dstStageMask, 0, 0, nullptr,
 						 0, nullptr, 1, &barrier);
 
 	layout = to;

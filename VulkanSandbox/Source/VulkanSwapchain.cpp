@@ -185,7 +185,7 @@ void VulkanSwapchain::transitionColor(VkCommandBuffer cmdBuffer) {
 	layoutTransitionBarrier.subresourceRange = resourceRange;
 
 	vkCmdPipelineBarrier(cmdBuffer,
-		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
+		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0,
 		0, nullptr, 0, nullptr, 1, &layoutTransitionBarrier);
 }
 

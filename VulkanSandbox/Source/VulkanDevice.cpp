@@ -95,7 +95,7 @@ VulkanDevice::VulkanDevice(const VulkanContext& context,
 		throw runtime_error("No suitable physical device found.");
 	}
 
-	float priority = 1.f;
+	const static float priority = 1.f;
 
 	if (transferIndex > -1) {
 		queues.push_back({

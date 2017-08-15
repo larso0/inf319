@@ -129,7 +129,7 @@ add_executable(Sandbox ${SANDBOX_SRC_FILES})
 add_dependencies(Sandbox Engine)
 target_link_libraries(Sandbox ${GLFW_LIBRARY} ${OPENGL_LIBRARIES} Engine)
 
-if(CMAKE_COMPILER_IS_GNUCXX)
+if(LINUX)
 	target_link_libraries(Sandbox dl)
 endif()
 
@@ -143,7 +143,7 @@ foreach(SHADER_SRC ${VULKANSANDBOX_SHADER_SRC_FILES})
 	add_custom_command(
 		OUTPUT ${SPIRV}
 		COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/Shaders/"
-		COMMAND glslangValidator -V ${SHADER_SRC} -o ${SPIRV}
+		COMMAND ${GLSLANG_VALIDATOR} -V ${SHADER_SRC} -o ${SPIRV}
 		DEPENDS ${SHADER_SRC})
 	list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 endforeach(SHADER_SRC)
