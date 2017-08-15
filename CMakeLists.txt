@@ -129,13 +129,15 @@ add_executable(Sandbox ${SANDBOX_SRC_FILES})
 add_dependencies(Sandbox Engine)
 target_link_libraries(Sandbox ${GLFW_LIBRARY} ${OPENGL_LIBRARIES} Engine)
 
-if(LINUX)
+if(UNIX)
 	target_link_libraries(Sandbox dl)
 endif()
 
 add_executable(VulkanSandbox ${VULKANSANDBOX_SRC_FILES})
 add_dependencies(VulkanSandbox Engine)
 target_link_libraries(VulkanSandbox ${GLFW_LIBRARY} ${Vulkan_LIBRARY} Engine)
+
+set(GLSLANG_VALIDATOR glslangValidator)
 
 foreach(SHADER_SRC ${VULKANSANDBOX_SHADER_SRC_FILES})
 	get_filename_component(FILE_NAME ${SHADER_SRC} NAME)
